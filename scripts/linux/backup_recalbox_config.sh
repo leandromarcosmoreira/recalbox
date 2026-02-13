@@ -11,20 +11,43 @@ mkdir -p "${BACKUP_DIR}"
 
 echo "Procurando cartão microSD do Recalbox montado..."
 
-# Encontra ponto de montagem com label RECALBOX
-MOUNTPOINT=""
-while IFS= read -r line; do
-  # lsblk -P retorna pares do tipo CHAVE="valor"
-  eval "${line}"
-  if [[ "${LABEL:-}" == "RECALBOX" && -n "${MOUNTPOINT:-}" ]]; then
-    MOUNTPOINT="${MOUNTPOINT}"
-    break
+# Permite informar manualmente o ponto de montagem, se desejado:
+#   ./backup_recalbox_config.sh /caminho/do/mount
+USER_MOUNTPOINT="${1-}"
+
+find_recalbox_mountpoint() {
+  local mp
+
+  # Se o usuário passou um caminho, tenta usar diretamente
+  if [[ -n "${USER_MOUNTPOINT}" ]]; then
+    mp="${USER_MOUNTPOINT}"
+    if [[ -d "${mp}/share" ]]; then
+      echo "${mp}"
+      return 0
+    fi
+    echo "Erro: '${mp}/share' não encontrado. Verifique o caminho informado." >&2
+    return 1
   fi
-done < <(lsblk -P -o LABEL,MOUNTPOINT 2>/dev/null || true)
+
+  # Caso contrário, tenta descobrir automaticamente:
+  # Percorre todos os MOUNTPOINTs conhecidos e procura um que contenha /share/system
+  while IFS= read -r mp; do
+    [[ -z "${mp}" || "${mp}" == "[SWAP]" ]] && continue
+    if [[ -d "${mp}/share/system" ]]; then
+      echo "${mp}"
+      return 0
+    fi
+  done < <(lsblk -rno MOUNTPOINT 2>/dev/null || true)
+
+  return 1
+}
+
+MOUNTPOINT="$(find_recalbox_mountpoint || true)"
 
 if [[ -z "${MOUNTPOINT}" ]]; then
-  echo "Erro: não foi encontrado nenhum dispositivo montado com label 'RECALBOX'." >&2
-  echo "Certifique-se de que o microSD está plugado e montado, ou monte-o manualmente e tente novamente." >&2
+  echo "Erro: não foi possível localizar o ponto de montagem do Recalbox." >&2
+  echo "Tente montar o cartão SD e/ou chamar o script informando o caminho, por exemplo:" >&2
+  echo "  $0 /run/media/SEU_USUARIO/RECALBOX" >&2
   exit 1
 fi
 
