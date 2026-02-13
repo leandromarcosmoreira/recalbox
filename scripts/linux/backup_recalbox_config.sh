@@ -21,20 +21,47 @@ find_recalbox_mountpoint() {
   # Se o usuário passou um caminho, tenta usar diretamente
   if [[ -n "${USER_MOUNTPOINT}" ]]; then
     mp="${USER_MOUNTPOINT}"
-    if [[ -d "${mp}/share" ]]; then
+    # Se o caminho já é o diretório "share" (contém system/roms/bios diretamente)
+    if [[ -d "${mp}/system" ]]; then
       echo "${mp}"
       return 0
     fi
-    echo "Erro: '${mp}/share' não encontrado. Verifique o caminho informado." >&2
+    # Se o caminho é a partição principal que contém um diretório "share"
+    if [[ -d "${mp}/share/system" ]]; then
+      echo "${mp}/share"
+      return 0
+    fi
+    echo "Erro: não foi possível localizar o diretório 'share' a partir de '${mp}'. Verifique o caminho informado." >&2
     return 1
   fi
 
+  # Alguns caminhos padrão comuns (Recalbox em cartões SD)
+  for mp in \
+    "/run/media/${USER}/RECALBOX" \
+    "/run/media/${USER}/SHARE" \
+    "/media/${USER}/RECALBOX" \
+    "/media/${USER}/SHARE"
+  do
+    if [[ -d "${mp}/system" ]]; then
+      echo "${mp}"
+      return 0
+    fi
+    if [[ -d "${mp}/share/system" ]]; then
+      echo "${mp}/share"
+      return 0
+    fi
+  done
+
   # Caso contrário, tenta descobrir automaticamente:
-  # Percorre todos os MOUNTPOINTs conhecidos e procura um que contenha /share/system
+  # Percorre todos os MOUNTPOINTs conhecidos e procura um que contenha system/ ou share/system
   while IFS= read -r mp; do
     [[ -z "${mp}" || "${mp}" == "[SWAP]" ]] && continue
-    if [[ -d "${mp}/share/system" ]]; then
+    if [[ -d "${mp}/system" ]]; then
       echo "${mp}"
+      return 0
+    fi
+    if [[ -d "${mp}/share/system" ]]; then
+      echo "${mp}/share"
       return 0
     fi
   done < <(lsblk -rno MOUNTPOINT 2>/dev/null || true)
@@ -45,15 +72,13 @@ find_recalbox_mountpoint() {
 MOUNTPOINT="$(find_recalbox_mountpoint || true)"
 
 if [[ -z "${MOUNTPOINT}" ]]; then
-  echo "Erro: não foi possível localizar o ponto de montagem do Recalbox." >&2
-  echo "Tente montar o cartão SD e/ou chamar o script informando o caminho, por exemplo:" >&2
-  echo "  $0 /run/media/SEU_USUARIO/RECALBOX" >&2
-  exit 1
+  # Não encontrou Recalbox montado; encerra silenciosamente para uso automático.
+  exit 0
 fi
 
 echo "Encontrado Recalbox em: ${MOUNTPOINT}"
 
-SRC_SHARE="${MOUNTPOINT}/share"
+SRC_SHARE="${MOUNTPOINT}"
 
 if [[ ! -d "${SRC_SHARE}" ]]; then
   echo "Erro: diretório '${SRC_SHARE}' não encontrado no cartão. A estrutura do Recalbox parece diferente." >&2
