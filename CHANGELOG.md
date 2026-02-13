@@ -1,8 +1,8 @@
-# Change Log
+# Registro de alterações
 
-See `git log` for the project history.
+Consulte `git log` para o histórico do projeto.
 
-All notable changes to this project have been documented in this file since 8.1.
+Todas as alterações notáveis neste projeto foram documentadas neste arquivo desde a versão 8.1.
 
 ## [8.1-Electron]
 - Add wpaf repository in monorepo

@@ -17,8 +17,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v3
         with:
-          # Required for the Docker build context and for the build script to run
           submodules: 'recursive'
+          fetch-depth: 0
+
+      - name: Update buildroot submodule to correct commit
+        run: |
+          cd buildroot
+          git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+          git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
 
       - name: Ensure buildroot directory exists
         run: |

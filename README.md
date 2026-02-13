@@ -2,52 +2,52 @@ recalbox
 ========
 ![](https://s3-eu-west-1.amazonaws.com/forums.recalbox.com/8d81e556-aefb-4729-ad2f-9d7386eff4cd.png)
 
-Welcome to the main recalbox repository.
+Bem-vindo ao repositório principal do Recalbox.
 
-This repository contains the source code that builds recalbox for different boards.
+Este repositório contém o código-fonte que compila o Recalbox para diferentes placas.
 
-Recalbox is an opensource project. We hope that you will contribute and help us to improve this OS.
-But if you are working on a fork, by respect for our work, we ask you not to integrate our work in progress located on branches other than master.
-Thank you for waiting for a merge on master branch.
+O Recalbox é um projeto open source. Esperamos que você contribua e nos ajude a melhorar este sistema operacional.
+Porém, se você estiver trabalhando em um fork, por respeito ao nosso trabalho, pedimos que não integre nosso trabalho em andamento localizado em branches diferentes da master.
+Obrigado por aguardar um merge na branch master.
 
-NEW : we integrated external projects in this repository. Recalbox is now a monorepo. That means:
-- you can make changes to every part of recalbox (buildroot, frontend, configgen...) in a single change
-- the pipeline now tests every project before building
-- reference commits are no longer needed in `packages.mk`
+NOVO: integramos projetos externos neste repositório. O Recalbox agora é um monorepo. Isso significa:
+- você pode fazer alterações em todas as partes do Recalbox (buildroot, frontend, configgen...) em uma única alteração
+- o pipeline agora testa cada projeto antes da compilação
+- referências de commits não são mais necessárias em `packages.mk`
 
-Please use the issue tracker of this repository to report a bug or request a feature.
+Por favor, use o rastreador de issues deste repositório para reportar bugs ou solicitar recursos.
 
-## Recalbox Projects
-- recalbox: this repository contains the source code to build recalbox.
-- [emulationstation](./projects/frontend/): the emulationstation frontend for recalbox.
-- [configgen](./projects/frontend/): the tool for automatic joystick configuration.
-- [recalbox-hardware](./projects/recalbox-hardware/): managing case and several hardwares for recalbox.
-- [recalbox-rgb-dual](./projects/recalbox-rgb-dual/): Recalbox RGB Dual project with DT and kernel module.
-- [wpaf](./projects/wpaf/): fan manager.
-- [piboy](./projects/piboy/): piboy dmg detector.
-
-
-## Useful links
-- [www.recalbox.com](https://www.recalbox.com): the official recalbox website.
-- [Recalbox Wiki](https://wiki.recalbox.com) the wiki of recalbox.
-- [forum.recalbox.com](https://forum.recalbox.com): recalbox forum. You will find support there.
+## Projetos Recalbox
+- recalbox: este repositório contém o código-fonte para compilar o Recalbox.
+- [emulationstation](./projects/frontend/): o frontend EmulationStation para Recalbox.
+- [configgen](./projects/frontend/): a ferramenta para configuração automática de joystick.
+- [recalbox-hardware](./projects/recalbox-hardware/): gerenciamento de case e diversos hardwares para Recalbox.
+- [recalbox-rgb-dual](./projects/recalbox-rgb-dual/): Projeto Recalbox RGB Dual com DT e módulo do kernel.
+- [wpaf](./projects/wpaf/): gerenciador de ventilador.
+- [piboy](./projects/piboy/): detector PiBoy DMG.
 
 
-# How to build (Linux only)
+## Links úteis
+- [www.recalbox.com](https://www.recalbox.com): o site oficial do Recalbox.
+- [Wiki do Recalbox](https://wiki.recalbox.com): a wiki do Recalbox.
+- [forum.recalbox.com](https://forum.recalbox.com): fórum do Recalbox. Você encontrará suporte lá.
 
-### General steps
 
-Install docker: [docs.docker.com/install/](https://docs.docker.com/install/)
+# Como compilar (apenas Linux)
 
-Make sure your user belongs to the docker group -> `sudo usermod -a -G docker $USER` then logoff/login
+### Passos gerais
 
-Clone the repository (replace `<your-repo-url>` accordingly):
+Instale o Docker: [docs.docker.com/install/](https://docs.docker.com/install/)
+
+Certifique-se de que seu usuário pertence ao grupo docker -> `sudo usermod -a -G docker $USER` e então faça logout/login
+
+Clone o repositório (substitua `<sua-url-do-repo>` adequadamente):
 
 ```bash
-ARCH="rpi4_64" && git clone --recurse-submodules <your-repo-url> recalbox-${ARCH}
+ARCH="rpi4_64" && git clone --recurse-submodules <sua-url-do-repo> recalbox-${ARCH}
 ```
 
-**Build** Recalbox:
+**Compile** o Recalbox:
 
 ```bash
 export ARCH="rpi4_64"
@@ -55,41 +55,41 @@ cd recalbox-${ARCH}
 ./scripts/linux/recaldocker.sh
 ```
 
-The build time depends on the CPU power of your computer, and will produce a Recalbox image for the architecture specified in `ARCH` variable.
+O tempo de compilação depende do poder do processador do seu computador e produzirá uma imagem do Recalbox para a arquitetura especificada na variável `ARCH`.
 
-At the end of the build, the image will be available in `output/images/recalbox/`.
+Ao final da compilação, a imagem estará disponível em `output/images/recalbox/`.
 
-### Customize build
+### Personalizar a compilação
 
-You can set the following environment variables to customize the build:
-* `ARCH`: to force the target architecture (see available architectures in the [`configs` directory](configs), default is to infer it from the current directory name)
-* `RECALBOX_VERSION`: to set a Recalbox build version (no impact on build, just the version shown)
-* `PACKAGE`: if you want to build a single package
+Você pode definir as seguintes variáveis de ambiente para personalizar a compilação:
+* `ARCH`: para forçar a arquitetura alvo (veja as arquiteturas disponíveis no [diretório `configs`](configs), o padrão é inferir pelo nome do diretório atual)
+* `RECALBOX_VERSION`: para definir a versão da compilação do Recalbox (sem impacto na compilação, apenas a versão exibida)
+* `PACKAGE`: se você quiser compilar um único pacote
 
-In the recalbox directory, you will find some directories created by the build:
-* `host` folder that contains output compiled for your host
-* `dl` folder that contains all packages download
-* `output` folder that contains compiled files
+No diretório recalbox, você encontrará alguns diretórios criados pela compilação:
+* pasta `host` que contém a saída compilada para seu host
+* pasta `dl` que contém todos os pacotes baixados
+* pasta `output` que contém os arquivos compilados
 
-### Custom command and menuconfig
+### Comando personalizado e menuconfig
 
-Using the command line arguments, you can pass a custom command to run:
+Usando os argumentos da linha de comando, você pode passar um comando personalizado para executar:
 ```bash
 ARCH=rpi4_64 && ./scripts/linux/recaldocker.sh make menuconfig
 ```
 
-This way you can run menuconfig to configure the system. If you never built the system, use the following command to create the default configuration for your board:
+Dessa forma, você pode executar o menuconfig para configurar o sistema. Se você nunca compilou o sistema, use o seguinte comando para criar a configuração padrão para sua placa:
 ```bash
 ARCH=rpi4_64 && ./scripts/linux/recaldocker.sh make "recalbox-${ARCH}_defconfig" && make menuconfig
 ```
 
-Your command will override the default build command from the docker image, so you may have to copy past some variable from it.
+Seu comando substituirá o comando de compilação padrão da imagem Docker, então você pode precisar copiar e colar algumas variáveis dela.
 
-### Known issues
+### Problemas conhecidos
 
-The docker build process only works on `linux`.
+O processo de compilação Docker funciona apenas em `linux`.
 
-During the image built if you encounter errors like the following :
+Durante a compilação da imagem, se você encontrar erros como os seguintes:
 
 ```text
 Reading package lists...
@@ -99,12 +99,12 @@ W: Failed to fetch http://archive.ubuntu.com/ubuntu/dists/xenial-backports/InRel
 W: Failed to fetch http://security.ubuntu.com/ubuntu/dists/xenial-security/InRelease  Temporary failure resolving 'security.ubuntu.com'
 W: Some index files failed to download. They have been ignored, or old ones used instead.
 ```
-Docker cannot access to internet to make updates. More precisely, it is a DNS problem (see https://odino.org/cannot-connect-to-the-internet-from-your-docker-containers/). If your `/etc/resolv.conf` is empty (it happens if all is managed by `network-manager` for example), Docker does not know which DNS to use. You'll need to tell him through the `/etc/default/docker` file by adding this line :
+O Docker não consegue acessar a internet para fazer atualizações. Mais precisamente, é um problema de DNS (veja https://odino.org/cannot-connect-to-the-internet-from-your-docker-containers/). Se seu `/etc/resolv.conf` estiver vazio (isso acontece quando tudo é gerenciado pelo `network-manager`, por exemplo), o Docker não sabe qual DNS usar. Você precisará informar através do arquivo `/etc/default/docker` adicionando esta linha:
 
 ```text
-DOCKER_OPTS="--dns IP.OF.YOUR.DNS"
+DOCKER_OPTS="--dns IP.DO.SEU.DNS"
 ```
-Restart Docker and retry. It should be ok.
+Reinicie o Docker e tente novamente. Deve funcionar.
 
 ```bash
 sudo service docker restart

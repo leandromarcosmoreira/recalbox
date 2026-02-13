@@ -1,10 +1,10 @@
-# Documentation
+# Documentação
 
-## New user documentation
+## Documentação de usuário nova
 
 https://wiki.recalbox.com/
 
-## Old user documentation/wiki
+## Documentação/wiki antiga de usuário
 
 https://github.com/recalbox/recalbox-os/wiki/
 https://recalbox.gitbook.io/

@@ -1,49 +1,49 @@
-1. OVERVIEW
-    fbv (FrameBuffer Viewer) is a simple program to view pictures on
-  a linux framebuffer device. In 2000, when fbv was created, there
-  were no other situable programs performing the same task, so the
-  authors decided to follow the rule: 'If you need a tool - write
-  it yourself!' :-)
+1. VISÃO GERAL
+    O fbv (FrameBuffer Viewer) é um programa simples para visualizar imagens em
+  um dispositivo framebuffer do Linux. Em 2000, quando o fbv foi criado, não
+  havia outros programas adequados para realizar a mesma tarefa, então os
+  autores decidiram seguir a regra: 'Se você precisa de uma ferramenta - escreva
+  você mesmo!' :-)
 
-2. REQUIREMENTS
-  - Linux, configured to provide the framebuffer device interface
-    (/dev/fb0 or /dev/fb/0)
-  - libungif for GIF support
-  - libjpeg for JPEG support
-  - libpng for PNG support
+2. REQUISITOS
+  - Linux, configurado para fornecer a interface do dispositivo framebuffer
+    (/dev/fb0 ou /dev/fb/0)
+  - libungif para suporte a GIF
+  - libjpeg para suporte a JPEG
+  - libpng para suporte a PNG
 
-3. INSTALLATION
-  - unpack the archive (you've propably already done it)
-  - run ./configure
-  - type: make
-  - type: make install
-  - enjoy...
+3. INSTALAÇÃO
+  - descompacte o arquivo (você provavelmente já fez isso)
+  - execute ./configure
+  - digite: make
+  - digite: make install
+  - aproveite...
 
-4. USAGE
-    Just run fbv without any arguments, and a short help message
-  will appear...
+4. USO
+    Basta executar o fbv sem nenhum argumento e uma breve mensagem de ajuda
+  será exibida...
 
-5. AUTHORS
+5. AUTORES
   Tomasz 'smoku' Sterna <tomek@smoczy.net>
   Mateusz 'mteg' Golicz <mtg@elsat.net.pl>
   
-  Feel free to send any comments, patches, bugfixes, suggestions, etc. The
-  authors are not native english speakers, and they are aware of the fact
-  that their english is far from perfect. Because of that, reports on
-  grammar and vocabulary mistakes in this file are also welcome.
+  Sinta-se à vontade para enviar comentários, patches, correções de bugs, sugestões, etc. Os
+  autores não são falantes nativos de inglês e estão cientes de que seu inglês
+  está longe de ser perfeito. Por isso, relatos sobre erros de gramática e
+  vocabulário neste arquivo também são bem-vindos.
 
-6. BUGS & TODO
-  - the code is really awfully formated and requires some fixes...
-  - the english in messages is not the best at all :-)
+6. BUGS E A FAZER
+  - o código está realmente mal formatado e precisa de algumas correções...
+  - o inglês nas mensagens não é o melhor de todos :-)
 
-7. ACKNOWLEDGEMENTS
-  - the fbset authors: some code in fb_display.c is based on it...
-  - Nat Ersoz - for his suggestions and bugfixes
-  - Mauro Meneghin - for the transparent GIF support
-  - Marcin 'Piaskowy' Zieba - for his minor bugfixes
-  - Mariusz 'Ma-rYu-sH' Witkowski - for his suggestions on alpha
-        channel support and testing
+7. AGRADECIMENTOS
+  - os autores do fbset: parte do código em fb_display.c é baseado nele...
+  - Nat Ersoz - por suas sugestões e correções de bugs
+  - Mauro Meneghin - pelo suporte a GIF transparente
+  - Marcin 'Piaskowy' Zieba - por suas pequenas correções de bugs
+  - Mariusz 'Ma-rYu-sH' Witkowski - por suas sugestões sobre suporte a canal
+        alfa e testes
 
-8. LICENSE
-  The package is licensed under the GNU GPL license, version 2.
-  Obtain your copy at http://www.gnu.org.
+8. LICENÇA
+  O pacote está licenciado sob a licença GNU GPL, versão 2.
+  Obtenha sua cópia em http://www.gnu.org.

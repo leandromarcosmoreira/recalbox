@@ -1,3 +1,3 @@
-# allinone for recalbox by digipcb.tech
+# allinone para recalbox por digipcb.tech
 
-Kernel module for all in one arcade board by digipcb.tech
+Módulo do kernel para placa de arcade tudo em um por digipcb.tech

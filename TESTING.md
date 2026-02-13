@@ -1,15 +1,14 @@
-# Testing
+# Testes
 
-This file is in french as all our beta testers are french.
+Este arquivo documenta os testes realizados nas versões beta do Recalbox.
 
+A cada modificação do sistema, os desenvolvedores adicionam uma ou mais linhas neste arquivo.
 
-A chaque modification du système, les développeurs ajoutent une ou plusieurs lignes dans ce fichier.
+Os testadores beta marcam as caixas durante as sessões de testes.
 
-Les beta testeurs cochent les cases lors des sessions de tests.
+Todas as caixas devem ser marcadas antes do lançamento estável.
 
-Toutes les cases doivent être cochées avant la release stable.
-
-Pour les pending features, elles ne seront activées que si les beta testeurs les valident selon les critères de qualité de Recalbox.
+Para os recursos pendentes, eles só serão ativados se os testadores beta os validarem de acordo com os critérios de qualidade do Recalbox.
 
 ## [NEXT]
 - [ ] Test internal scraper on PC88 & Spectravideo
@@ -324,7 +323,7 @@ Pour les pending features, elles ne seront activées que si les beta testeurs le
 
 
 ## [7.2-Reloaded]
-## Pending Features
+## Recursos pendentes
 - [ ] Bump Libretro-mame => test core with Romset 0.230
 - [ ] Supermodel => Model3 emulator => test with romset 0.230 and test bypass configgen option add 'model3.configfile=dummy' in 'recalbox.conf' and check if '/recalbox/share/system/configs/model3/supermodel.ini' is not rewritten
 - [ ] colecovision Netplay with FBNeo core
@@ -352,7 +351,7 @@ Pour les pending features, elles ne seront activées que si les beta testeurs le
 - [ ] Test all sound modes
 - [ ] Test externalscreen.sh with a first screen that is 2K/4K but has not FullHD resolution
 
-## Non Regression
+## Não regressão
 - [ ] Vérifier que le settings "Show FPS" fonctionne correctement
 - [ ] Vérifier que la nouvelle façon de gerer les O/C fonctionne correctement (verifier les vitesses réelles en SSH)
 - [ ] Réécriture des menus => vérifier l'affichage, et le fonctionnement de chaque entrée dans les menus recalbox
@@ -466,7 +465,7 @@ Pour les pending features, elles ne seront activées que si les beta testeurs le
 - [ ] Check OgS boot correctly after update from 7.1.1 OgS
 
 
-## Technique
+## Técnico
 - [ ] Packages that require libgo2 compiles well
 - [ ] /usr/lib/libgo2.so should provides go2_ symbols
 - [ ] Validate libretro-mupen64plus-next compiles on all boards

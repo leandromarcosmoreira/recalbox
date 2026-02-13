@@ -1,16 +1,16 @@
-# Systems
+# Sistemas
 
-This outlines how to add support for many different systems into EmulationStation through configuration of `es_systems.cfg`.
+Isso descreve como adicionar suporte para muitos sistemas diferentes no EmulationStation através da configuração de `es_systems.cfg`.
 
 ## Nintendo Wii
 
 ### [Dolphin](http://dolphin-emu.org/)
-In Options → Configure → Interface, disable *Confirm to Stop*.
+Em Opções → Configurar → Interface, desabilite *Confirmar para Parar*.
 ``` xml
 <system>
   <name>wii</name>
   <fullname>Nintendo Wii</fullname>
-  <path>/rom/path/here</path>
+  <path>/caminho/para/roms</path>
   <extension>.elf .dol .gcm .iso .wbfs .ciso .gcz .wad</extension>
   <command>dolphin-emu -b -e %ROM%</command>
   <platform>wii</platform>
@@ -22,12 +22,12 @@ In Options → Configure → Interface, disable *Confirm to Stop*.
 ## [Nintendo GameCube](https://en.wikipedia.org/wiki/GameCube)
 
 ### [Dolphin](http://dolphin-emu.org/)
-In Options → Configure → Interface, disable *Confirm to Stop*.
+Em Opções → Configurar → Interface, desabilite *Confirmar para Parar*.
 ``` xml
 <system>
   <name>gc</name>
   <fullname>Nintendo GameCube</fullname>
-  <path>/rom/path/here</path>
+  <path>/caminho/para/roms</path>
   <extension>.elf .dol .gcm .iso .wbfs .ciso .gcz .wad</extension>
   <command>dolphin-emu -b -e %ROM%</command>
   <platform>gc</platform>
@@ -39,12 +39,12 @@ In Options → Configure → Interface, disable *Confirm to Stop*.
 ## Nintendo 64
 
 ### [RetroArch](http://libretro.com)
-Requires a [Nintendo N64 Core](http://wiki.libretro.com/index.php?title=Nintendo_N64_Core_Compatibility), like [`libretro-mupen64plus`](http://wiki.libretro.com/index.php?title=Mupen64Plus).
+Requer um [Core Nintendo N64](http://wiki.libretro.com/index.php?title=Nintendo_N64_Core_Compatibility), como [`libretro-mupen64plus`](http://wiki.libretro.com/index.php?title=Mupen64Plus).
 ``` xml
 <system>
   <name>n64</name>
   <fullname>Nintendo 64</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.z64 .zip .n64</extension>
   <command>retroarch --fullscreen -L /usr/lib/libretro/mupen64plus_libretro.so %ROM%</command>
   <platform>n64</platform>
@@ -57,7 +57,7 @@ Requires a [Nintendo N64 Core](http://wiki.libretro.com/index.php?title=Nintendo
 <system>
   <name>n64</name>
   <fullname>Nintendo 64</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.z64 .zip .n64</extension>
   <command>mupen64plus --nogui --noask --noosd --fullscreen %ROM%</command>
   <platform>n64</platform>
@@ -69,12 +69,12 @@ Requires a [Nintendo N64 Core](http://wiki.libretro.com/index.php?title=Nintendo
 ## Nintendo Entertainment System
 
 ### [RetroArch](http://libretro.com)
-Requires a [Nintendo NES Core](http://wiki.libretro.com/index.php?title=Nintendo_NES_Core_Compatibility), like [`libretro-fceumm`](http://wiki.libretro.com/index.php?title=FCEUmm).
+Requer um [Core Nintendo NES](http://wiki.libretro.com/index.php?title=Nintendo_NES_Core_Compatibility), como [`libretro-fceumm`](http://wiki.libretro.com/index.php?title=FCEUmm).
 ``` xml
 <system>
   <name>nes</name>
   <fullname>Nintendo Entertainment System</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.nes .NES .zip</extension>
   <command>retroarch --fullscreen -L /usr/lib/libretro/fceumm_libretro.so %ROM%</command>
   <platform>nes</platform>
@@ -87,7 +87,7 @@ Requires a [Nintendo NES Core](http://wiki.libretro.com/index.php?title=Nintendo
 <system>
   <name>nes</name>
   <fullname>Nintendo Entertainment System</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.nes .NES .zip</extension>
   <command>mednafen -video.fs 1 %ROM%</command>
   <platform>nes</platform>
@@ -103,7 +103,7 @@ Requires a [Nintendo NES Core](http://wiki.libretro.com/index.php?title=Nintendo
 <system>
   <name>snes</name>
   <fullname>Super Nintendo Entertainment System</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.smc .sfc .swc .fig .mgd .mgh .ufo .bin .gd3 .gd7 .usa .eur .jap .aus .st .bs .dx2 .048 .058 .078 .1 .a .gz .zip .jma</extension>
   <command>zsnes -m %ROM%</command>
   <platform>snes</platform>
@@ -112,12 +112,12 @@ Requires a [Nintendo NES Core](http://wiki.libretro.com/index.php?title=Nintendo
 ```
 
 ### [RetroArch](http://libretro.com)
-Requires a [Nintendo SNES Core](http://wiki.libretro.com/index.php?title=Nintendo_SNES_Core_Compatibility), like [`libretro-snes9x-next`](http://wiki.libretro.com/index.php?title=SNES9x_Next).
+Requer um [Core Nintendo SNES](http://wiki.libretro.com/index.php?title=Nintendo_SNES_Core_Compatibility), como [`libretro-snes9x-next`](http://wiki.libretro.com/index.php?title=SNES9x_Next).
 ``` xml
 <system>
   <name>snes</name>
   <fullname>Super Nintendo Entertainment System</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.smc .sfc .fig .bin .zip</extension>
   <command>retroarch --fullscreen -L /usr/lib/libretro/snes9x_next_libretro.so %ROM%</command>
   <platform>snes</platform>
@@ -132,7 +132,7 @@ Requires a [Nintendo SNES Core](http://wiki.libretro.com/index.php?title=Nintend
 <system>
   <name>atari2600</name>
   <fullname>Atari 2600</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.bin .zip</extension>
   <command>stella %ROM%</command>
   <platform>atari2600</platform>
@@ -147,7 +147,7 @@ Requires a [Nintendo SNES Core](http://wiki.libretro.com/index.php?title=Nintend
 <system>
   <name>gba</name>
   <fullname>Nintendo GameBoy Advance</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.gba .zip</extension>
   <command>mednafen -video.fs 1 %ROM%</command>
   <platform>gba</platform>
@@ -160,7 +160,7 @@ Requires a [Nintendo SNES Core](http://wiki.libretro.com/index.php?title=Nintend
 <system>
   <name>gba</name>
   <fullname>Nintendo GameBoy Advance</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.gba .zip</extension>
   <command>VisualBoyAdvance -F %ROM%</command>
   <platform>gba</platform>
@@ -169,12 +169,12 @@ Requires a [Nintendo SNES Core](http://wiki.libretro.com/index.php?title=Nintend
 ```
 
 ### [RetroArch](http://libretro.com)
-Requires a [Nintendo GameBoy Advance Core](http://wiki.libretro.com/index.php?title=Nintendo_Game_Boy_Advance_Core_Compatibility), like [`libretro-vba-next`](http://wiki.libretro.com/index.php?title=VBA_Next).
+Requer um [Core Nintendo GameBoy Advance](http://wiki.libretro.com/index.php?title=Nintendo_Game_Boy_Advance_Core_Compatibility), como [`libretro-vba-next`](http://wiki.libretro.com/index.php?title=VBA_Next).
 ``` xml
 <system>
   <name>gba</name>
   <fullname>Nintendo GameBoy Advance</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.gba .zip</extension>
   <command>retroarch --fullscreen -L /usr/lib/libretro/vba_next_libretro.so %ROM%</command>
   <platform>gba</platform>
@@ -185,20 +185,18 @@ Requires a [Nintendo GameBoy Advance Core](http://wiki.libretro.com/index.php?ti
 
 ## [Steam](http://store.steampowered.com)
 
-1. Create a folder at `~/.emulationstation/steam`
-  ```
-  mkdir -p ~/.emulationstation/steam
-  ```
-2. Add text files for each Steam game you would like to have available through
-EmulationStation where:
-  * The file name represents the game's name
-  * The contents of the file represents the Steam application ID (found from the
-    game's Steam store page)
+1. Crie uma pasta em `~/.emulationstation/steam`
+   ```
+   mkdir -p ~/.emulationstation/steam
+   ```
+2. Adicione arquivos de texto para cada jogo Steam que você gostaria de ter disponível através do EmulationStation onde:
+   * O nome do arquivo representa o nome do jogo
+   * O conteúdo do arquivo representa o ID do aplicativo Steam (encontrado na página da loja Steam do jogo)
 
-  ```
-  cd ~/.emulationstation/steam
-  echo "250900" >> "The Binding of Isaac: Rebirth.txt"
-  ```
+   ```
+   cd ~/.emulationstation/steam
+   echo "250900" >> "The Binding of Isaac: Rebirth.txt"
+   ```
 
 ``` xml
 <system>
@@ -220,7 +218,7 @@ EmulationStation where:
 <system>
   <name>psp</name>
   <fullname>PlayStation Portable</fullname>
-  <path>/path/to/roms</path>
+  <path>/caminho/para/roms</path>
   <extension>.iso</extension>
   <command>ppsspp --fullscreen --escape-exit "%ROM_RAW%"</command>
   <platform>psp</platform>

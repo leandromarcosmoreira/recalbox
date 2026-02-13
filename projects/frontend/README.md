@@ -1,221 +1,215 @@
-Recalbox Emulationstation
-================
+Recalbox EmulationStation
+=========================
 
-This frontend is included as part of the Recalbox monorepo and has been
-adapted specifically for Recalbox.
+Este frontend está incluído como parte do monorepo do Recalbox e foi
+adaptado especificamente para o Recalbox.
 
-Below this line is the original EmulationStation readme.
+Abaixo desta linha está o readme original do EmulationStation.
 
 EmulationStation
 ================
 
-A cross-platform graphical front-end for emulators with controller navigation.
+Uma interface gráfica multiplataforma para emuladores com navegação por controle.
 
-Project website: http://emulationstation.org
+Website do projeto: http://emulationstation.org
 
-**Raspberry Pi users:**
-A cool guy named petrockblog made a script which automatically installs many emulators and ES. It also includes options for configuring your RPi and setting it up to boot directly into ES. You can find it here: https://github.com/petrockblog/RetroPie-Setup
+**Usuários de Raspberry Pi:**
+Um cara legal chamado petrockblog fez um script que instala automaticamente muitos emuladores e o ES. Ele também inclui opções para configurar seu RPi e configurá-lo para iniciar diretamente no ES. Você pode encontrar aqui: https://github.com/petrockblog/RetroPie-Setup
 
 Download
 ========
 
-Download a pre-compiled version at [emulationstation.org](http://emulationstation.org#download).
+Baixe uma versão pré-compilada em [emulationstation.org](http://emulationstation.org#download).
 
+Encontrei um bug! Tenho um problema!
+====================================
 
-I found a bug! I have a problem!
-================================
+- Primeiro, tente verificar a [lista de issues](https://github.com/Aloshi/EmulationStation/issues?state=open) para algumas entradas que possam corresponder ao seu problema. Certifique-se de verificar issues fechadas também!
 
-- First, try to check the [issue list](https://github.com/Aloshi/EmulationStation/issues?state=open) for some entries that might match your problem.  Make sure to check closed issues too!
+- Se você estiver executando o EmulationStation em um Raspberry Pi e tiver problemas com alterações no arquivo de configuração que não têm efeito, conteúdo ausente após editar, etc., verifique se seu cartão SD está corrompido (veja as issues [#78](https://github.com/Aloshi/EmulationStation/issues/78) e [#107](https://github.com/Aloshi/EmulationStation/issues/107)). Você pode fazer isso com ferramentas gratuitas como [h2testw](http://www.heise.de/download/h2testw.html) ou [F3](http://oss.digirati.com.br/f3/).
 
-- If you're running EmulationStation on a on Raspberry Pi and have problems with config file changes not taking effect, content missing after editing, etc., check if your SD card is corrupted (see issues [#78](https://github.com/Aloshi/EmulationStation/issues/78) and [#107](https://github.com/Aloshi/EmulationStation/issues/107)). You can do this with free tools like [h2testw](http://www.heise.de/download/h2testw.html) or [F3](http://oss.digirati.com.br/f3/).
-
-- Try to update to the latest version of EmulationStation using git (you might need to delete your `es_input.cfg` and `es_settings.cfg` after that to reset them to default values):
+- Tente atualizar para a versão mais recente do EmulationStation usando git (você pode precisar excluir seu `es_input.cfg` e `es_settings.cfg` depois para redefini-los para os valores padrão):
 ```bash
-cd YourEmulationStationDirectory
+cd SeuDiretorioDoEmulationStation
 git pull
 cmake .
 make
 ```
 
-- If your problem still isn't gone, the best way to report a bug is to post an issue on GitHub. Try to post the simplest steps possible to reproduce the bug. Include files you think might be related (except for ROMs, of course). If you haven't re-run ES since the crash, the log file `~/logs/es_log.txt` is also helpful. Otherwise `~/logs/es_log.txt.backup` containss logs of the previous es session.
+- Se seu problema ainda não foi resolvido, a melhor maneira de relatar um bug é postar uma issue no GitHub. Tente postar os passos mais simples possíveis para reproduzir o bug. Inclua arquivos que você acha que podem estar relacionados (exceto ROMs, claro). Se você não executou o ES desde o crash, o arquivo de log `~/logs/es_log.txt` também é útil. Caso contrário, `~/logs/es_log.txt.backup` contém logs da sessão anterior do es.
 
-Building
-========
+Compilação
+==========
 
-EmulationStation uses some C++11 code, which means you'll need to use at least g++-4.7 on Linux, or VS2010 on Windows, to compile.
+O EmulationStation usa algum código C++, o que significa que você precisará usar pelo menos g++-4.7 no Linux, ou VS2010 no Windows, para compilar.
 
-EmulationStation has a few dependencies. For building, you'll need CMake, SDL2, Boost (System, Filesystem, DateTime, Locale), FreeImage, FreeType, Eigen3, cURL and Liblzma.  You also should probably install the `fonts-droid` package which contains fallback fonts for Chinese/Japanese/Korean characters, but ES will still work fine without it (this package is only used at run-time).
+O EmulationStation tem algumas dependências. Para compilar, você precisará do CMake, SDL2, Boost (System, Filesystem, DateTime, Locale), FreeImage, FreeType, Eigen3, cURL e Liblzma. Você também provavelmente deve instalar o pacote `fonts-droid` que contém fontes de fallback para caracteres chineses/japoneses/coreanos, mas o ES funcionará bem sem ele (este pacote é usado apenas em tempo de execução).
 
-**On Debian/Ubuntu:**
-All of this be easily installed with apt-get:
+**No Debian/Ubuntu:**
+Tudo isso pode ser facilmente instalado com apt-get:
 ```bash
 sudo apt-get install libavfilter-dev libavdevice-dev libprocps-dev libsdl2-dev libsdl2-mixer-dev libfreeimage-dev libfreetype6-dev libcurl4-openssl-dev libasound2-dev libgl1-mesa-dev libzip-dev build-essential cmake fonts-droid liblzma-dev
 ```
 
-Then, generate and build the Makefile with CMake:
+Então, gere e compile o Makefile com CMake:
 ```bash
-cd YourEmulationStationDirectory
+cd SeuDiretorioDoEmulationStation
 cmake .
 make
 ```
 
-**On the Raspberry Pi:**
+**No Raspberry Pi:**
 
-Complete Raspberry Pi build instructions at [emulationstation.org](http://emulationstation.org/gettingstarted.html#install_rpi_standalone).
+Instruções completas de compilação para Raspberry Pi em [emulationstation.org](http://emulationstation.org/gettingstarted.html#install_rpi_standalone).
 
-**On Windows:**
+**No Windows:**
 
 [FreeImage](http://downloads.sourceforge.net/freeimage/FreeImage3154Win32.zip)
 
-[FreeType2](http://download.savannah.gnu.org/releases/freetype/freetype-2.4.9.tar.bz2) (you'll need to compile)
+[FreeType2](http://download.savannah.gnu.org/releases/freetype/freetype-2.4.9.tar.bz2) (você precisará compilar)
 
 [SDL2](http://www.libsdl.org/release/SDL2-devel-2.0.3-VC.zip)
 
-[cURL](http://curl.haxx.se/download.html) (you'll need to compile or get the pre-compiled DLL version)
+[cURL](http://curl.haxx.se/download.html) (você precisará compilar ou obter a versão DLL pré-compilada)
 
-(Remember to copy necessary .DLLs into the same folder as the executable: probably FreeImage.dll, freetype6.dll, SDL2.dll, libcurl.dll, and zlib1.dll. Exact list depends on if you built your libraries in "static" mode or not.)
+(Lembre-se de copiar os arquivos .DLL necessários para a mesma pasta do executável: provavelmente FreeImage.dll, freetype6.dll, SDL2.dll, libcurl.dll e zlib1.dll. A lista exata depende de você ter compilado suas bibliotecas em modo "estático" ou não.)
 
-[CMake](http://www.cmake.org/cmake/resources/software.html) (this is used for generating the Visual Studio project)
+[CMake](http://www.cmake.org/cmake/resources/software.html) (isso é usado para gerar o projeto do Visual Studio)
 
-(If you don't know how to use CMake, here are some hints: run cmake-gui and point it at your EmulationStation folder.  Point the "build" directory somewhere - I use EmulationStation/build.  Click configure, choose "Visual Studio [year] Project", fill in red fields as they appear and keep clicking Configure (you may need to check "Advanced"), then click Generate.)
+(Se você não sabe como usar o CMake, aqui estão algumas dicas: execute o cmake-gui e aponte-o para sua pasta do EmulationStation. Aponte o diretório "build" para algum lugar - eu uso EmulationStation/build. Clique em configure, escolha "Visual Studio [ano] Project", preencha os campos vermelhos conforme aparecem e continue clicando em Configure (você pode precisar marcar "Advanced"), então clique em Generate.)
 
-
-Configuring
-===========
+Configuração
+============
 
 **~/.emulationstation/es_systems.cfg:**
-When first run, an example systems configuration file will be created at `~/.emulationstation/es_systems.cfg`.  `~` is `$HOME` on Linux, and `%HOMEPATH%` on Windows.  This example has some comments explaining how to write the configuration file. See the "Writing an es_systems.cfg" section for more information.
+Na primeira execução, um arquivo de exemplo de configuração de sistemas será criado em `~/.emulationstation/es_systems.cfg`. `~` é `$HOME` no Linux, e `%HOMEPATH%` no Windows. Este exemplo tem alguns comentários explicando como escrever o arquivo de configuração. Veja a seção "Escrevendo um es_systems.cfg" para mais informações.
 
-**Keep in mind you'll have to set up your emulator separately from EmulationStation!**
+**Lembre-se de que você terá que configurar seu emulador separadamente do EmulationStation!**
 
 **~/.emulationstation/es_input.cfg:**
-When you first start EmulationStation, you will be prompted to configure an input device. The process is thus:
+Quando você iniciar o EmulationStation pela primeira vez, será solicitado a configurar um dispositivo de entrada. O processo é o seguinte:
 
-1. Hold a button on the device you want to configure.  This includes the keyboard.
+1. Segure um botão no dispositivo que deseja configurar. Isso inclui o teclado.
 
-2. Press the buttons as they appear in the list.  Some inputs can be skipped by holding any button down for a few seconds (e.g. page up/page down).
+2. Pressione os botões conforme aparecem na lista. Algumas entradas podem ser ignoradas segurando qualquer botão por alguns segundos (por exemplo, page up/page down).
 
-3. You can review your mappings by pressing up and down, making any changes by pressing A.
+3. Você pode revisar seus mapeamentos pressionando para cima e para baixo, fazendo alterações pressionando A.
 
-4. Choose "SAVE" to save this device and close the input configuration screen.
+4. Escolha "SALVAR" para salvar este dispositivo e fechar a tela de configuração de entrada.
 
-The new configuration will be added to the `~/.emulationstation/es_input.cfg` file.
+A nova configuração será adicionada ao arquivo `~/.emulationstation/es_input.cfg`.
 
-**Both new and old devices can be (re)configured at any time by pressing the Start button and choosing "CONFIGURE INPUT".**  From here, you may unplug the device you used to open the menu and plug in a new one, if necessary.  New devices will be appended to the existing input configuration file, so your old devices will remain configured.
+**Ambos os dispositivos novos e antigos podem ser (re)configurados a qualquer momento pressionando o botão Iniciar e escolhendo "CONFIGURAR ENTRADA".** A partir daqui, você pode desconectar o dispositivo que usou para abrir o menu e conectar um novo, se necessário. Novos dispositivos serão anexados ao arquivo de configuração de entrada existente, então seus dispositivos antigos permanecerão configurados.
 
-**If your controller stops working, you can delete the `~/.emulationstation/es_input.cfg` file to make the input configuration screen re-appear on next run.**
+**Se seu controle parar de funcionar, você pode excluir o arquivo `~/.emulationstation/es_input.cfg` para fazer a tela de configuração de entrada reaparecer na próxima execução.**
 
-
-You can use `--help` or `-h` to view a list of command-line options. Briefly outlined here:
+Você pode usar `--help` ou `-h` para ver uma lista de opções de linha de comando. Resumidamente descritas aqui:
 ```
---resolution [width] [height]	- try and force a particular resolution
---gamelist-only		- only display games defined in a gamelist.xml file.
---ignore-gamelist	- do not parse any gamelist.xml files.
---draw-framerate	- draw the framerate.
---no-exit		- do not display 'exit' in the ES menu.
---debug			- show the console window on Windows, do slightly more logging
---windowed	- run ES in a window, works best in conjunction with --resolution [w] [h].
---vsync [1/on or 0/off]	- turn vsync on or off (default is on).
---scrape	- run the interactive command-line metadata scraper.
+--resolution [largura] [altura]	- tentar forçar uma resolução específica
+--gamelist-only		- exibir apenas jogos definidos em um arquivo gamelist.xml
+--ignore-gamelist	- não analisar nenhum arquivo gamelist.xml
+--draw-framerate	- desenhar a taxa de quadros
+--no-exit		- não exibir 'sair' no menu do ES
+--debug			- mostrar a janela do console no Windows, fazer um pouco mais de日志
+--windowed	- executar o ES em uma janela, funciona melhor em conjunto com --resolution [l] [a]
+--vsync [1/on ou 0/off]	- ativar ou desativar o vsync (o padrão é ativado)
+--scrape	- executar o interativo scraper de metadados de linha de comando
 ```
 
-As long as ES hasn't frozen, you can always press F4 to close the application.
+Desde que o ES não tenha travado, você sempre pode pressionar F4 para fechar o aplicativo.
 
+Escrevendo um es_systems.cfg
+=============================
 
-Writing an es_systems.cfg
-=========================
+Instruções completas de configuração em [emulationstation.org](http://emulationstation.org/gettingstarted.html#config).
 
-Complete configuration instructions at [emulationstation.org](http://emulationstation.org/gettingstarted.html#config).
+O arquivo `es_systems.cfg` contém os dados de configuração do sistema para o EmulationStation, escritos em XML. Isso informa ao EmulationStation quais sistemas você tem, a qual plataforma eles correspondem (para scraping) e onde os jogos estão localizados.
 
-The `es_systems.cfg` file contains the system configuration data for EmulationStation, written in XML.  This tells EmulationStation what systems you have, what platform they correspond to (for scraping), and where the games are located.
-
-ES will check two places for an es_systems.cfg file, in the following order, stopping after it finds one that works:
+O ES verificará dois lugares para um arquivo es_systems.cfg, na seguinte ordem, parando após encontrar um que funcione:
 * `~/.emulationstation/es_systems.cfg`
 * `/etc/emulationstation/es_systems.cfg`
 
-The order EmulationStation displays systems reflects the order you define them in.
+A ordem em que o EmulationStation exibe os sistemas reflete a ordem em que você os define.
 
-**NOTE:** A system *must* have at least one game present in its "path" directory, or ES will ignore it! If no valid systems are found, ES will report an error and quit!
+**NOTA:** Um sistema *deve* ter pelo menos um jogo presente em seu diretório "path", ou o ES o ignorará! Se nenhum sistema válido for encontrado, o ES relatará um erro e sairá!
 
-Here's an example es_systems.cfg:
+Aqui está um exemplo de es_systems.cfg:
 
 ```xml
-<!-- This is the EmulationStation Systems configuration file.
-All systems must be contained within the <systemList> tag.-->
+<!-- Este é o arquivo de configuração de sistemas do EmulationStation.
+Todos os sistemas devem estar contidos dentro da tag <systemList>. -->
 
 <systemList>
-	<!-- Here's an example system to get you started. -->
+	<!-- Aqui está um exemplo de sistema para você começar. -->
 	<system>
-		<!-- A short name, used internally. -->
+		<!-- Um nome curto, usado internamente. -->
 		<name>snes</name>
 
-		<!-- A "pretty" name, displayed in the menus and such. This one is optional. -->
+		<!-- Um nome "bonito", exibido nos menus e tal. Este é opcional. -->
 		<fullname>Super Nintendo Entertainment System</fullname>
 
-		<!-- The path to start searching for ROMs in. '~' will be expanded to $HOME or %HOMEPATH%, depending on platform.
-		All subdirectories (and non-recursive links) will be included. -->
+		<!-- O caminho para começar a procurar ROMs. '~' será expandido para $HOME ou %HOMEPATH%, dependendo da plataforma.
+		Todos os subdiretórios (e links não recursivos) serão incluídos. -->
 		<path>~/roms/snes</path>
 
-		<!-- A list of extensions to search for, delimited by any of the whitespace characters (", \r\n\t").
-		You MUST include the period at the start of the extension! It's also case sensitive. -->
+		<!-- Uma lista de extensões para procurar, delimitada por qualquer dos caracteres de espaço em branco (", \r\n\t").
+		Você DEVE incluir o ponto no início da extensão! Também diferencia maiúsculas de minúsculas. -->
 		<extension>.smc .sfc .SMC .SFC</extension>
 
-		<!-- The shell command executed when a game is selected. A few special tags are replaced if found in a command, like %ROM% (see below). -->
+		<!-- O comando shell executado quando um jogo é selecionado. Algumas tags especiais são substituídas se encontradas em um comando, como %ROM% (veja abaixo). -->
 		<command>snesemulator %ROM%</command>
-		<!-- This example would run the bash command "snesemulator /home/user/roms/snes/Super\ Mario\ World.sfc". -->
+		<!-- Este exemplo executaria o comando bash "snesemulator /home/user/roms/snes/Super\ Mario\ World.sfc". -->
 
-		<!-- The platform(s) to use when scraping. You can see the full list of accepted platforms in src/PlatformIds.cpp.
-		It's case sensitive, but everything is lowercase. This tag is optional.
-		You can use multiple platforms too, delimited with any of the whitespace characters (", \r\n\t"), eg: "genesis, megadrive" -->
+		<!-- A(s) plataforma(s) a ser usada(m) ao fazer scraping. Você pode ver a lista completa de plataformas aceitas em src/PlatformIds.cpp.
+		É sensível a maiúsculas/minúsculas, mas tudo é minúsculo. Esta tag é opcional.
+		Você também pode usar múltiplas plataformas, delimitadas com qualquer dos caracteres de espaço em branco (", \r\n\t"), por exemplo: "genesis, megadrive" -->
 		<platform>snes</platform>
 
-		<!-- The theme to load from the current theme set. See THEMES.md for more information.
-		This tag is optional; if not set, it will use the value of <name>. -->
+		<!-- O tema a ser carregado do conjunto de temas atual. Veja THEMES.md para mais informações.
+		Esta tag é opcional; se não for definida, usará o valor de <name>. -->
 		<theme>snes</theme>
 	</system>
 </systemList>
 ```
 
-The following "tags" are replaced by ES in launch commands:
+As seguintes "tags" são substituídas pelo ES nos comandos de inicialização:
 
-`%ROM%`		- Replaced with absolute path to the selected ROM, with most Bash special characters escaped with a backslash.
+`%ROM%` - Substituído pelo caminho absoluto para a ROM selecionada, com a maioria dos caracteres especiais do Bash escapados com uma barra invertida.
 
-`%BASENAME%`	- Replaced with the "base" name of the path to the selected ROM. For example, a path of "/foo/bar.rom", this tag would be "bar". This tag is useful for setting up AdvanceMAME.
+`%BASENAME%` - Substituído pelo nome "base" do caminho para a ROM selecionada. Por exemplo, um caminho de "/foo/bar.rom", esta tag seria "bar". Esta tag é útil para configurar o AdvanceMAME.
 
-`%ROM_RAW%`	- Replaced with the unescaped, absolute path to the selected ROM.  If your emulator is picky about paths, you might want to use this instead of %ROM%, but enclosed in quotes.
+`%ROM_RAW%` - Substituído pelo caminho absoluto, sem escape, para a ROM selecionada. Se o seu emulador for exigente sobre caminhos, você pode querer usar isso em vez de %ROM%, mas entre aspas.
 
-See [SYSTEMS.md](SYSTEMS.md) for some live examples in EmulationStation.
+Veja [SYSTEMS.md](SYSTEMS.md) para alguns exemplos reais no EmulationStation.
 
 gamelist.xml
 ============
 
-The gamelist.xml file for a system defines metadata for games, such as a name, image (like a screenshot or box art), description, release date, and rating.
+O arquivo gamelist.xml para um sistema define metadados para jogos, como nome, imagem (como uma captura de tela ou arte da caixa), descrição, data de lançamento e classificação.
 
-If at least one game in a system has an image specified, ES will use the detailed view for that system (which displays metadata alongside the game list).
+Se pelo menos um jogo em um sistema tiver uma imagem especificada, o ES usará a visualização detalhada para esse sistema (que exibe metadados junto com a lista de jogos).
 
-*You can use ES's [scraping](http://en.wikipedia.org/wiki/Web_scraping) tools to avoid creating a gamelist.xml by hand.*  There are two ways to run the scraper:
+*Você pode usar as [ferramentas de scraping](http://en.wikipedia.org/wiki/Web_scraping) do ES para evitar criar um gamelist.xml manualmente.* Há duas maneiras de executar o scraper:
 
-* **If you want to scrape multiple games:** press start to open the menu and choose the "SCRAPER" option.  Adjust your settings and press "SCRAPE NOW".
-* **If you just want to scrape one game:** find the game on the game list in ES and press select.  Choose "EDIT THIS GAME'S METADATA" and then press the "SCRAPE" button at the bottom of the metadata editor.
+* **Se você quiser fazer scraping de vários jogos:** pressione start para abrir o menu e escolha a opção "SCRAPER". Ajuste suas configurações e pressione "SCRAPEAR AGORA".
+* **Se você quiser apenas fazer scraping de um jogo:** encontre o jogo na lista de jogos no ES e pressione select. Escolha "EDITAR METADADOS DESTE JOGO" e então pressione o botão "SCRAPEAR" na parte inferior do editor de metadados.
 
-You can also edit metadata within ES by using the metadata editor - just find the game you wish to edit on the gamelist, press Select, and choose "EDIT THIS GAME'S METADATA."
+Você também pode editar metadados dentro do ES usando o editor de metadados - basta encontrar o jogo que deseja editar na lista de jogos, pressione Select e escolha "EDITAR METADADOS DESTE JOGO".
 
-A command-line version of the scraper is also provided - just run emulationstation with `--scrape` *(currently broken)*.
+Uma versão de linha de comando do scraper também é fornecida - basta executar o emulationstation com `--scrape` *(atualmente quebrado)*.
 
-The switch `--ignore-gamelist` can be used to ignore the gamelist and force ES to use the non-detailed view.
+O switch `--ignore-gamelist` pode ser usado para ignorar a gamelist e forçar o ES a usar a visualização não detalhada.
 
-If you're writing a tool to generate or parse gamelist.xml files, you should check out [GAMELISTS.md](GAMELISTS.md) for more detailed documentation.
+Se você estiver escrevendo uma ferramenta para gerar ou analisar arquivos gamelist.xml, você deve verificar [GAMELISTS.md](GAMELISTS.md) para documentação mais detalhada.
 
+Temas
+=====
 
-Themes
-======
+Por padrão, o EmulationStation parece bem feio. Você pode consertar isso. Se quiser saber mais sobre criar seus próprios temas (ou editar os existentes), leia [THEMES.md](THEMES.md)!
 
-By default, EmulationStation looks pretty ugly. You can fix that. If you want to know more about making your own themes (or editing existing ones), read [THEMES.md](THEMES.md)!
+Coloquei alguns temas para download na minha página do EmulationStation: http://aloshi.com/emulationstation#themes
 
-I've put some themes up for download on my EmulationStation webpage: http://aloshi.com/emulationstation#themes
-
-If you're using RetroPie, you should already have a nice set of themes automatically installed!
-
+Se você estiver usando o RetroPie, você já deve ter um bom conjunto de temas instalados automaticamente!
 
 -Alec "Aloshi" Lofquist
 http://www.aloshi.com

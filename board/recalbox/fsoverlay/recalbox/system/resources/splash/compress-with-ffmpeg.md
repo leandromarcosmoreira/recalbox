@@ -1,6 +1,6 @@
-# Optimal compression with ffmpeg
+# Compressão otimizada com ffmpeg
 
-## Standard 1080p
+## Padrão 1080p
 
 ```bash
 ffmpeg -y -i "$INPUT" \

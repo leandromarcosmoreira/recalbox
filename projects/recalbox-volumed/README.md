@@ -1,28 +1,28 @@
 ## volumed
 
-Volume control from the wheel.
+Controle de volume pela roda.
 
-This program listens for ABS_VOLUME event on an input device.
-It will change default sink volume from the value of the event.
+Este programa escuta eventos ABS_VOLUME em um dispositivo de entrada.
+Ele alterará o volume padrão do sink pelo valor do evento.
 
-## Requirements
+## Requisitos
 
-You will need PulseAudio to compile this software.
+Você precisará do PulseAudio para compilar este software.
 
-## Building
+## Compilação
 
 ```
 autoreconf -i
 ./configure && make && make install
 ```
 
-## Usage
+## Uso
 
-Run:
+Execute:
 
 ```
-volumed /dev/input/inputX # adapt X to the desired wheel input device
+volumed /dev/input/inputX # adapte X para o dispositivo de entrada desejado
 ```
 
-Use the volume wheel to change audio output volume.
+Use a roda de volume para alterar o volume da saída de áudio.
 

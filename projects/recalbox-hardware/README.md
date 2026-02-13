@@ -1,25 +1,25 @@
 # recalbox-hardware
 
-## Hardware management
+## Gerenciamento de hardware
 
-The purpose of the lib is to automatically detect and or configure hardwares connected to the different boards.
-Main python scripts *must* run fast. Please write short and fast code. Use module dynamic loading wherever it is possible/efficient
+O objetivo da biblioteca é detectar e/ou configurar automaticamente os hardwares conectados às diferentes placas.
+Os scripts Python principais *devem* ser rápidos. Por favor, escreva código curto e rápido. Use carregamento dinâmico de módulos sempre que for possível/eficiente.
 
 ### Cases
 
-Here is the part that auto-detect and/or configure cases with hardware parts, starting with the GPi.
+Aqui está a parte que detecta e/ou configura automaticamente cases com peças de hardware, começando com o GPi.
 
-compile:
+Compilar:
 ```
 python -m compilall .
 ```
 
-How to start:
+Como iniciar:
 ```
 python case/manage.py "<casename>" <install> <machine> <phase>
-with:
-- casename : Case to install/uninstall. Empty to autodetect.
-- install  : 1 = install, 0 = uninstall
-- machine  : 1 = machine request, 0 = user request
-- phase    : 0 = install hardware, 1 = install software
+com:
+- casename : Case para instalar/desinstalar. Vazio para autodetectar.
+- install  : 1 = instalar, 0 = desinstalar
+- machine  : 1 = solicitação da máquina, 0 = solicitação do usuário
+- phase    : 0 = instalar hardware, 1 = instalar software
 ```

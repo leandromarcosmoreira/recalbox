@@ -1,16 +1,16 @@
 # recalbox-configgen
-##Emulators configuration tools for recalboxOS
+## Ferramentas de configuração de emuladores para RecalboxOS
 
-*WIP*
+*Em desenvolvimento*
 
-The purpose of the lib is to automatically configure emulators, using command line args and environment available in recalbox.
+O objetivo da biblioteca é configurar automaticamente os emuladores, usando argumentos de linha de comando e variáveis de ambiente disponíveis no Recalbox.
 
-How to test:
+Como testar:
 ```
 python -m runtest discover -p "*test*"
 ```
 
-How to start:
+Como iniciar:
 ```
 python configgen/emulatorlauncher.py  -system neogeo -rom myrom.zip
 ```

@@ -1,71 +1,71 @@
-# res2h - A flexible resource compiler similar to bin2h and qrc
+# res2h - Um compilador de recursos flexível semelhante ao bin2h e qrc
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) ![Build](https://github.com/HorstBaerbel/res2h/workflows/Build/badge.svg) ![Tests](https://github.com/HorstBaerbel/res2h/workflows/Tests/badge.svg) ![Clang-format](https://github.com/HorstBaerbel/res2h/workflows/Clang-format/badge.svg) ![Clang-tidy](https://github.com/HorstBaerbel/res2h/workflows/Clang-tidy/badge.svg)
 
-**res2h** can:
+**res2h** pode:
 
-* Convert binary data from arbitrary files to a raw hex C/C++ arrays for including them into your software (similar to [bin2h](http://code.google.com/p/bin2h/) with added functionality).
-* Compile the data from all the files into one binary archive file (like [tar](https://en.wikipedia.org/wiki/Tar_(computing)) or [qrc](https://doc.qt.io/qt-5/resources.html)) which you can then load from disk or append to the application executable and access at runtime. No external libraries are needed for this.
-* It is currently tested under Linux only, but Windows and to some extent MacOS are plannend.
+* Converter dados binários de arquivos arbitrários para arrays hex C/C++ brutos para incluí-los em seu software (semelhante ao [bin2h](http://code.google.com/p/bin2h/) com funcionalidades adicionais).
+* Compilar os dados de todos os arquivos em um arquivo de archive binário (como [tar](https://en.wikipedia.org/wiki/Tar_(computing)) ou [qrc](https://doc.qt.io/qt-5/resources.html)) que você pode então carregar do disco ou anexar ao executável do aplicativo e acessar em tempo de execução. Nenhuma biblioteca externa é necessária para isso.
+* Atualmente é testado apenas no Linux, mas Windows e em alguma medida MacOS estão planejados.
 
-The main tools are [res2h](#res2h) which can convert files to .h/.cpp files or pack them into binary archives and [res2hdump](#res2hdump) which lets you view or unpack those binary archives.
+As principais ferramentas são [res2h](#res2h) que pode converter arquivos para arquivos .h/.cpp ou empacotá-los em archives binários e [res2hdump](#res2hdump) que permite visualizar ou desempacotar esses archives binários.
 
-If you find a bug or make an improvement your pull requests are appreciated.
+Se você encontrar um bug ou fizer uma melhoria, seus pull requests são apreciados.
 
-# License
+# Licença
 
-All of this is under the [MIT License](LICENSE).
+Tudo isso está sob a [Licença MIT](LICENSE).
 
-# Prequisites
+# Pré-requisitos
 
-* A C++14-capable compiler with support for std::filesystem. For installing a new g++ version see [this](https://lektiondestages.art.blog/2013/05/23/installing-and-switching-gcc-g-versions-in-debian/).
-* CMake 3.1 or higher for building and unit tests via CTest.
+* Um compilador compatível com C++14 com suporte para std::filesystem. Para instalar uma nova versão do g++ veja [isso](https://lektiondestages.art.blog/2013/05/23/installing-and-switching-gcc-g-versions-in-debian/).
+* CMake 3.1 ou superior para construção e testes de unidade via CTest.
 
-# Building
+# Construção
 
-* Clone repo using ```git clone https://github.com/HorstBaerbel/res2h```
-* Navigate to the res2h folder, then run cmake: ```cmake .```
-* Then build using: ```make```
-* You can run the unit test using: ```make tests```
+* Clone o repositório usando ```git clone https://github.com/HorstBaerbel/res2h```
+* Navegue até a pasta res2h, então execute cmake: ```cmake .```
+* Então construa usando: ```make```
+* Você pode executar o teste de unidade usando: ```make tests```
 
-# Usage
+# Uso
 
 ## res2h
 
-res2h has different modes. It can convert binary data from files to a raw hex arrays in .c/.cpp source files which you can then include in your project and compile them into the executable. It can also create a common header that lets you access all the converted arrays with one include. If you don't want your data to be loaded into memory res2h also provides the possiblility to create one binary archive containing all the files which you can then access via the "Res2h" class provided in seperate headers. You can also embed this archive in your executable, so you only have one file, and access it like you would with any other archive on disk.
-It should compile and work at least in Windows, Ubuntu and Raspbian.
+res2h tem diferentes modos. Ele pode converter dados binários de arquivos para arrays hex brutos em arquivos de origem .c/.cpp que você pode incluir em seu projeto e compilá-los no executável. Ele também pode criar um cabeçalho comum que permite acessar todos os arrays convertidos com um include. Se você não quiser que seus dados sejam carregados na memória, o res2h também oferece a possibilidade de criar um archive binário contendo todos os arquivos que você pode acessar via a classe "Res2h" fornecida em cabeçalhos separados. Você também pode incorporar este archive em seu executável, então você tem apenas um arquivo, e acessa como faria com qualquer outro archive em disco.
+Deveria compilar e funcionar pelo menos no Windows, Ubuntu e Raspbian.
 
 ```sh
-res2h INFILE/INDIR OUTFILE/OUTDIR [OPTIONS]
+res2h ARQUIVO_ENTRADA/PASTA_ENTRADA ARQUIVO_SAIDA/PASTA_SAIDA [OPÇÕES]
 ```
 
-### Valid OPTIONS
+### Opções válidas
 
-**-r**: Recurse into subdirectories below indir.  
-**-c**: Use .c files and C-arrays for storing the data definitions, else uses .cpp files and std::vector / std::map.  
-**-h HEADERFILE**: Puts all declarations in the file "HEADERFILE" using "extern" and includes that header file in the source files.  
-**-u SOURCEFILE**: Create utility functions and arrays in a .c/.cpp file. Only makes sense in combination with **-h**.  
-**-1**: Combine all converted files into one big .c/.cpp file (use together with **-u**).  
-**-b**: Compile binary archive OUTFILE containing all infile(s). For reading in your software include res2hinterface.h/.c/.cpp (depending on **-c**) and consult the docs.  
-**-a**: Append INFILE to OUTFILE. Can be used to append an archive to an executable (only one embedded archive possible).  
-**-v**: Be verbose.
+**-r**: Recursar em subdiretórios abaixo do diretório de entrada.  
+**-c**: Usar arquivos .c e arrays C para armazenar as definições de dados, caso contrário usa arquivos .cpp e std::vector / std::map.  
+**-h ARQUIVO_CABEÇALHO**: Coloca todas as declarações no arquivo "ARQUIVO_CABEÇALHO" usando "extern" e inclui esse arquivo de cabeçalho nos arquivos de origem.  
+**-u ARQUIVO_FONTE**: Criar funções utilitárias e arrays em um arquivo .c/.cpp. Faz sentido apenas em combinação com **-h**.  
+**-1**: Combinar todos os arquivos convertidos em um grande arquivo .c/.cpp (use junto com **-u**).  
+**-b**: Compilar archive binário ARQUIVO_SAIDA contendo todos os arquivos de entrada. Para ler em seu software inclua res2hinterface.h/.c/.cpp (dependendo de **-c**) e consulte a documentação.  
+**-a**: Anexar ARQUIVO_ENTRADA a ARQUIVO_SAIDA. Pode ser usado para anexar um archive a um executável (apenas um archive incorporado possível).  
+**-v**: Ser verboso.
 
-### Examples
+### Exemplos
 
-* Convert a single file: ```res2h ./lenna.png ./resources/lenna_png.cpp```
-* Convert all files in a directory, create a common header and utilities: ```res2h ./data ./resources -r -h resources.h -u resources.cpp```
-* Convert all files in a directory, create a common header and utilities, combine all data in resources.cpp: ```res2h ./data ./resources -r -1 -h resources.h -u resources.cpp```
-* Convert data to a binary archive: ```res2h ./data ./resources/data.bin -b```
-* Append an archive to an executable: ```res2h ./resources/data.bin ./program.exe -a```
+* Converter um único arquivo: ```res2h ./lenna.png ./resources/lenna_png.cpp```
+* Converter todos os arquivos em um diretório, criar um cabeçalho comum e utilitários: ```res2h ./data ./resources -r -h resources.h -u resources.cpp```
+* Converter todos os arquivos em um diretório, criar um cabeçalho comum e utilitários, combinar todos os dados em resources.cpp: ```res2h ./data ./resources -r -1 -h resources.h -u resources.cpp```
+* Converter dados para um archive binário: ```res2h ./data ./resources/data.bin -b```
+* Anexar um archive a um executável: ```res2h ./resources/data.bin ./program.exe -a```
 
-### Generating compilable / includable files
+### Gerando arquivos compiláveis/incluíveis
 
-#### The command ```res2h a.x b_x.cpp -h bla.h``` would create those files
+#### O comando ```res2h a.x b_x.cpp -h bla.h``` criaria esses arquivos
 
 **a_x.cpp:**
 
 ```c++
-// this file was auto-generated from a.x by res2h
+// este arquivo foi auto-gerado de a.x por res2h
 
 #include "bla.h"
 
@@ -78,18 +78,18 @@ const uint8_t a_x_data[a_x_size] = {
 **bla.h:**
 
 ```c++
-// this file was auto-generated by res2h
+// este arquivo foi auto-gerado por res2h
 
 extern const uint32_t a_x_size;
 extern const uint8_t a_x_data[];
 ```
 
-#### The command ```res2h a.x b_x.cpp *-c* -h bla.h -u bla.cpp``` would create a_x.cpp too, and
+#### O comando ```res2h a.x b_x.cpp *-c* -h bla.h -u bla.cpp``` também criaria a_x.cpp, e
 
 **bla.h:**
 
 ```c++
-// this file was auto-generated by res2h
+// este arquivo foi auto-gerado por res2h
 
 extern const uint32_t a_x_size;
 extern const uint8_t a_x_data[];
@@ -100,7 +100,7 @@ struct Res2hEntry {
     const uint8_t * data;
 };
 
-// this contains all the resources with their names and data
+// isto contém todos os recursos com seus nomes e dados
 extern const uint32_t res2hNrOfFiles;
 extern const Res2hEntry res2hFiles[];
 ```
@@ -108,7 +108,7 @@ extern const Res2hEntry res2hFiles[];
 **bla.cpp:**
 
 ```c++
-// this file was auto-generated by res2h
+// este arquivo foi auto-gerado por res2h
 
 #include "bla.h"
 
@@ -118,12 +118,12 @@ const Res2hEntry res2hFiles[res2hNrOfFiles] = {
 };
 ```
 
-#### The command ```res2h a.x b_x.cpp -h bla.h *-u bla.cpp*``` would create a_x.cpp too, and
+#### O comando ```res2h a.x b_x.cpp -h bla.h *-u bla.cpp``` também criaria a_x.cpp, e
 
 **bla.h:**
 
 ```c++
-// this file was auto-generated by res2h
+// este arquivo foi auto-gerado por res2h
 
 extern const uint32_t a_x_size;
 extern const uint8_t a_x_data[];
@@ -134,12 +134,12 @@ struct Res2hEntry {
     const uint8_t * data;
 };
 
-// this contains all the resources with their names and data
+// isto contém todos os recursos com seus nomes e dados
 extern const uint32_t res2hNrOfFiles;
 extern const Res2hEntry res2hFiles[];
 
-// this maps the relative file name of resource to its data
-// usage e.g: Res2hEntry resource = res2hMap["a.x"];
+// isso mapeia o nome do arquivo relativo do recurso para seus dados
+// uso ex: Res2hEntry resource = res2hMap["a.x"];
 typedef const std::map<const std::string, const Res2hEntry> res2hMapType;
 extern res2hMapType res2hMap;
 ```
@@ -147,7 +147,7 @@ extern res2hMapType res2hMap;
 **bla.cpp:**
 
 ```c++
-// this file was auto-generated by res2h
+// este arquivo foi auto-gerado por res2h
 
 #include "bla.h"
 
@@ -163,104 +163,105 @@ res2hMapType::value_type mapTemp[] = {
 res2hMapType res2hMap(mapTemp, mapTemp + sizeof mapTemp / sizeof mapTemp[0]);
 ```
 
-### Generating binary archives
+### Gerando archives binários
 
-#### The command ```res2h ./data archive.bin -r -b``` 
+#### O comando ```res2h ./data archive.bin -r -b``` 
 
-would find all files in the directory ./data and pack them into the binary archive test.bin. For reading archive files or embedded archives in your application include the files "res2hinterface.h/.cpp" resp.# the class "Res2h". They provide all functions needed for reading resources from archives or from disk. You can find an example on how to use the functions in "res2hdump.cpp" / dumpArchive().
+Encontraria todos os arquivos no diretório ./data e os empacotaria no archive binário test.bin. Para ler arquivos de archive ou archives incorporados em seu aplicativo, inclua os arquivos "res2hinterface.h/.cpp" resp. a classe "Res2h". Eles fornecem todas as funções necessárias para ler recursos de archives ou do disco. Você pode encontrar um exemplo de como usar as funções em "res2hdump.cpp" / dumpArchive().
 
 ## res2hdump
 
-res2hdump is a tool that lets you dump information and/or files from a binary res2h archive or an archive embedded in another file, e.g. executable. It also serves as an example on how to use the "Res2h" class contained in the "res2hinterface" files.
+res2hdump é uma ferramenta que permite despejar informações e/ou arquivos de um archive res2h binário ou um archive incorporado em outro arquivo, por exemplo executável. Também serve como exemplo de como usar a classe "Res2h" contida nos arquivos "res2hinterface".
 
 ```sh
-res2hdump ARCHIVE [OUTDIR] [OPTIONS]
+res2hdump ARQUIVO [PASTA_SAIDA] [OPÇÕES]
 ```
 
-### Valid OPTIONS
+### Opções válidas
 
-**-f**: Recreate path structure, creating directories as needed.  
-**-i**: Display information about the archive and files, but don't extract anything.  
-**-v**: Be verbose.  
+**-f**: Recriar estrutura deパス, criando diretórios conforme necessário.  
+**-i**: Exibir informações sobre o archive e arquivos, mas não extrair nada.  
+**-v**: Ser verboso.
 
-### Examples
+### Exemplos
 
-* Display information about the archive: ```res2hdump ./resources/data.bin -i```
-* Extract all files from an archive with subdirectories: ```res2hdump ./resources/data.bin ./resources -f```
-* Extract files from embedded archive: ```res2hdump ./resources/program.exe ./resources```
+* Exibir informações sobre o archive: ```res2hdump ./resources/data.bin -i```
+* Extrair todos os arquivos de um archive com subdiretórios: ```res2hdump ./resources/data.bin ./resources -f```
+* Extrair arquivos de archive incorporado: ```res2hdump ./resources/program.exe ./resources```
 
-## Binary archive format
+## Formato do archive binário
 
 <table>
     <tr>
-        <th>Offset (decimal)</th><th>Type</th><th>Description</th>
+        <th>Offset (decimal)</th><th>Tipo</th><th>Descrição</th>
     </tr>
     <tr>
-        <td>Start</td><td>char[8]</td><td>magic number string "res2hbin"</td>
+        <td>Início</td><td>char[8]</td><td>string do número mágico "res2hbin"</td>
     </tr>
     <tr>
-        <td>08</td><td>uint32_t</td><td>file format version number (currently 2)</td>
+        <td>08</td><td>uint32_t</td><td>número da versão do formato do arquivo (atualmente 2)</td>
     </tr>
     <tr>
-        <td>12</td><td>uint32_t</td><td>format flags(32/64 bit depth of archive)</td>
+        <td>12</td><td>uint32_t</td><td>flags de formato (profundidade de 32/64 bits do archive)</td>
     </tr>
     <tr>
-        <td>16</td><td>uint32_t/uint64_t</td><td>size of whole archive in bytes</td>
+        <td>16</td><td>uint32_t/uint64_t</td><td>tamanho de todo o archive em bytes</td>
     </tr>
     <tr>
-        <td>20/24</td><td>uint32_t</td><td>number of directory and file entries following</td>
+        <td>20/24</td><td>uint32_t</td><td>número de entradas de diretório e arquivo a seguir</td>
     </tr>
     <tr>
-        <td colspan="3">Then follows the directory:</td>
+        <td colspan="3">Então segue o diretório:</td>
     </tr>
     <tr>
-        <td>24/28 + 00</td><td>uint16_t</td><td>file entry #0, size of internal name WITHOUT null-terminating character</td>
+        <td>24/28 + 00</td><td>uint16_t</td><td>entrada de arquivo #0, tamanho do nome interno SEM caractere nulo</td>
     </tr>
     <tr>
-        <td>24/28 + 02</td><td>char[]</td><td>file entry #0, internal name (NOT null-terminated)</td>
+        <td>24/28 + 02</td><td>char[]</td><td>entrada de arquivo #0, nome interno (NÃO terminado em nulo)</td>
     </tr>
     <tr>
-        <td>24/28 + 02 + name</td><td>uint32_t</td><td>file entry #0, format flags for entry (currently 0)</td>
+        <td>24/28 + 02 + nome</td><td>uint32_t</td><td>entrada de arquivo #0, flags de formato para entrada (atualmente 0)</td>
     </tr>
     <tr>
-        <td>24/28 + 06 + name</td><td>uint32_t/uint64_t</td><td>file entry #0, size of data</td>
+        <td>24/28 + 06 + nome</td><td>uint32_t/uint64_t</td><td>entrada de arquivo #0, tamanho dos dados</td>
     </tr>
     <tr>
-        <td>24/28 + 10/14 + name</td><td>uint32_t/uint64_t</td><td>file entry #0, absolute offset of data in file</td>
+        <td>24/28 + 10/14 + nome</td><td>uint32_t/uint64_t</td><td>entrada de arquivo #0, offset absoluto dos dados no arquivo</td>
     </tr>
     <tr>
-        <td>24/28 + 14/22 + name</td><td>uint32_t/uint64_t</td><td>file entry #0, Fletcher32/64 checksum of data</td>
+        <td>24/28 + 14/22 + nome</td><td>uint32_t/uint64_t</td><td>entrada de arquivo #0, soma Fletcher32/64 dos dados</td>
     </tr>
     <tr>
-        <td colspan="3">Then follow the other directory entries</td>
+        <td colspan="3">Então seguem as outras entradas do diretório</td>
     </tr>
     <tr>
-        <td colspan="3">Directly after the directory the data blocks begin</td>
+        <td colspan="3">Imediatamente após o diretório, os blocos de dados começam</td>
     </tr>
     <tr>
-        <td>End - 04/08</td><td>uint32_t/uint64_t</td><td>Fletcher32/64 checksum of whole file up to this point</td>
+        <td>Fim - 04/08</td><td>uint32_t/uint64_t</td><td>Soma Fletcher32/64 de todo o arquivo até este ponto</td>
     </tr>
 </table>
-Obviously with a 32bit archive you're limited to ~4GB for the whole binary file and ~4GB per data entry. Res2h will automagically create a 32bit archive to save space if data permits it, or a 64bit archive if needed. This is all transparently handled by res2hinterface, so you don't really need to care about it.
 
-## Todo
+Obviamente com um archive de 32bit você está limitado a ~4GB para todo o arquivo binário e ~4GB por entrada de dados. O res2h automaticamente criará um archive de 32bit para economizar espaço se os dados permitirem, ou um archive de 64bit se necessário. Isso tudo é tratado transparentemente pelo res2hinterface, então você realmente não precisa se preocupar com isso.
 
-* Make CI build + test on Windows + MacOS too.
-* More unit tests.
-* More cleanup. More modern C++14.
-* Enable some more warnings in compiler and clang-tidy.
-* Use nested exceptions.
-* Use [cxxopts](https://github.com/jarro2783/cxxopts) for argument parsing (support long options).
-* Unicode support.
-* Save space on .c / .cpp files by outputting 32bit or even 64bit hex strings.
-* Re-use compile results of "Build" action in "Unit tests" and "Clang-tidy" action to save time.
-* Use CRC instead of Fletcher.
-* Add optional resource compression.
-* Parallel processing of input files.
-* Support updating archives.
-* Option to only save hash to archives to save space.
-* More compact binary format.
+## A fazer
 
-## I found a bug or have suggestion
+* Fazer CI construir + testar no Windows + MacOS também.
+* Mais testes de unidade.
+* Mais limpeza. C++14 mais moderno.
+* Ativar mais avisos no compilador e clang-tidy.
+* Usar exceções aninhadas.
+* Usar [cxxopts](https://github.com/jarro2783/cxxopts) para parsing de argumentos (suporte a opções longas).
+* Suporte a Unicode.
+* Economizar espaço em arquivos .c / .cpp outputting hex strings de 32bit ou até 64bit.
+* Reutilizar resultados de compilação da ação "Build" em "Unit tests" e "Clang-tidy" para economizar tempo.
+* Usar CRC em vez de Fletcher.
+* Adicionar compressão de recursos opcional.
+* Processamento paralelo de arquivos de entrada.
+* Suporte a atualização de archives.
+* Opção para apenas salvar hash em archives para economizar espaço.
+* Formato binário mais compacto.
 
-The best way to report a bug or suggest something is to post an issue on GitHub. Try to make it simple, but descriptive and add ALL the information needed to REPRODUCE the bug. **"Does not work" is not enough!** If you can not compile, please state your system, compiler version, etc! You can also contact me via email if you want to.
+## Encontrei um bug ou tenho sugestão
+
+A melhor maneira de relatar um bug ou sugerir algo é postar uma issue no GitHub. Tente ser simples, mas descritivo e adicione TODAS as informações necessárias para REPRODUZIR o bug. **"Não funciona" não é suficiente!** Se você não consegue compilar, por favor informe seu sistema, versão do compilador, etc! Você também pode entrar em contato comigo por e-mail se quiser.

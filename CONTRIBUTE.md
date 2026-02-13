@@ -1,14 +1,14 @@
-# How to contribute to the Recalbox project
+# Como contribuir com o projeto Recalbox
 
-1. Create a Merge Request with your changes.
-   Every single fix/feature is developed in its own branch and associated with a Merge Request.
-2. Check if the **linters** of the pipeline succeed.
-   The linters can be first executed locally by running `./run_linters` from the root of the project.
-   The linting process consists of checking Buildroot files for syntax error, deprecated features, ...
-   It also checks configurations files.
-   And finally, it tests your commit messages that must follow Conventional Commits (https://www.conventionalcommits.org/en/v1.0.0/)
-3. Push your branch and rebase against master as frequently as possible.
-4. Propose a merge request
-   The merge request is labelled with ~Testing::Beta label, by the Recalbox team. This label indicates to embed in the next beta.
-4. Once tested by the team, the merge request can be merged (fast-foward only, so rebasing often is important).
-   Do not forget to insert an entry in the `RELEASE-NOTES.md`.
+1. Crie uma Merge Request com suas alterações.
+   Cada correção/recurso é desenvolvido em sua própria branch e associado a uma Merge Request.
+2. Verifique se os **linters** do pipeline passam com sucesso.
+   Os linters podem ser executados primeiro localmente executando `./run_linters` na raiz do projeto.
+   O processo de linting consiste em verificar arquivos Buildroot para erros de sintaxe, recursos obsoletos, ...
+   Também verifica arquivos de configuração.
+   E finalmente, testa suas mensagens de commit que devem seguir os Conventional Commits (https://www.conventionalcommits.org/pt-br/v1.0.0/)
+3. Envie sua branch e faça rebase contra master o mais frequentemente possível.
+4. Proponha uma merge request
+   A merge request é rotulada com ~Testing::Beta pela equipe Recalbox. Este rótulo indica incorporação na próxima beta.
+5. Uma vez testada pela equipe, a merge request pode ser incorporada (apenas fast-forward, então fazer rebase frequentemente é importante).
+   Não esqueça de inserir uma entrada no `RELEASE-NOTES.md`.

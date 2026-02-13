@@ -1,19 +1,19 @@
-Install `7z` and `xsltproc`:
+Instale o `7z` e o `xsltproc`:
 ```bash
 apt-get install 7zip xsltproc
 ```
 
-Update files for a system:
+Atualize os arquivos para um sistema:
 ```bash
-python3 updater.py -target <corename>
+python3 updater.py -target <nome do core>
 ```
 
-Example:
+Exemplo:
 ```bash
 python3 updater.py -target fbneo
 ```
 
-Available targets:
+Alvos disponíveis:
 - advancemame
 - mame2000
 - mame2003

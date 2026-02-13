@@ -64,7 +64,7 @@
   ```
 </details>
 
-*TL;DR* NOOBS configuration is completely undocumented. Here is our attempt to document knowledge we gathered by digging into NOOBS source code, reading other OS entries in the [official `os_list_v3.json`](https://downloads.raspberrypi.org/os_list_v3.json) and experimenting.
+*TL;DR* A configuração do NOOBS não está documentada. Aqui está nossa tentativa de documentar o conhecimento que reunimos analisando o código-fonte do NOOBS, lendo outras entradas de SO no [oficial `os_list_v3.json`](https://downloads.raspberrypi.org/os_list_v3.json) e experimentando.
 
 ## `os_list_v3.json`
 

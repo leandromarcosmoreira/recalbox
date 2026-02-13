@@ -1,21 +1,21 @@
-# Deployments
+# Implantações
 
-## Process
+## Processo
 
-### Building and releasing process
-* The **build stage** will create distribution files (`tar.gz` and `.img`) and set them as `build artifacts`
-* build artifacts are saved by gitlab for a month
-* The **release stage** of the ci will download all build artifact, and prepare folders and html files to make it releasable on deployment servers (scaleway object storage for releases and netlify for the index page of archive.recalbox.com)
-* The `index.html` is processed to display build variables
+### Processo de compilação e lançamento
+* O **estágio de build** criará arquivos de distribuição (`tar.gz` e `.img`) e os definirá como `artefatos de build`
+* Os artefatos de build são salvos pelo GitLab por um mês
+* O **estágio de release** do CI baixará todos os artefatos de build e preparará pastas e arquivos HTML para disponibilização nos servidores de implantação (armazenamento de objetos Scaleway para releases e Netlify para a página de índice de archive.recalbox.com)
+* O `index.html` é processado para exibir as variáveis de build
 
-#### Review specificty
-* builds are manual
-* The **release stage** of the branch will prepare deploy the new version on the reviews bucket https://recalbox-reviews.s3.nl-ams.scw.cloud/review-XXXX)
-* no `.img` are deployed, just `.tar.xz`
+#### Especificidade de revisão
+* Os builds são manuais
+* O **estágio de release** da branch preparará e implantará a nova versão no bucket de revisões https://recalbox-reviews.s3.nl-ams.scw.cloud/review-XXXX)
+* Nenhum `.img` é implantado, apenas `.tar.xz`
 
 
-#### Production specificity
-* `master` and `tags` builds are automatic
-* A manual deployment of master is recommanded to test the version
-* A tag can be created on `master` and will lead to a new build
-* The **release stage** of the tag will prepare deploy the new version on the release bucket https://recalbox-releases.s3.nl-ams.scw.cloud/stable), and change the https://archive.recalbox.com file on netifly.
+#### Especificidade de produção
+* Os builds de `master` e `tags` são automáticos
+* Uma implantação manual da master é recomendada para testar a versão
+* Uma tag pode ser criada na `master` e levará a um novo build
+* O **estágio de release** da tag preparará e implantará a nova versão no bucket de releases https://recalbox-releases.s3.nl-ams.scw.cloud/stable), e alterará o arquivo https://archive.recalbox.com no Netlify.

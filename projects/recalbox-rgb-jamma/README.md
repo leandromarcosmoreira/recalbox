@@ -1,3 +1,3 @@
 # recalbox-rgb-jamma
 
-Kernel module for recalbox RGB Jamma
+Módulo do kernel para recalbox RGB Jamma

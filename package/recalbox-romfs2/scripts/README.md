@@ -1,51 +1,51 @@
 # ROMFS v2
 
-Requirements: python 3.8+
+Requisitos: Python 3.8+
 
-## Requirements:
+## Requisitos:
 
-You need to run first this command line at the root of the Recalbox repository to generate `.config` file in `./output/target`:
+Você precisa executar primeiro este comando na raiz do repositório Recalbox para gerar o arquivo `.config` em `./output/target`:
 
 `./scripts/linux/recaldocker.sh`
 
-## Create new system
+## Criar novo sistema
 
-Use this feature to create a new system in the romfs.
+Use este recurso para criar um novo sistema no romfs.
 
-Usage: `python3 romfs.py -systems <systems root folder> -create <new system short name>`
+Uso: `python3 romfs.py -systems <pasta raiz dos sistemas> -create <nome curto do novo sistema>`
 
-Example:
+Exemplo:
 - `python3 romfs.py -systems ../systems -create snes`
 - `python3 ~/recalbox/packages/recalbox-romfs2/scripts/romfs.py -systems ~/recalbox/packages/recalbox-romfs2/systems -create snes`
 
-This will create a new folder in `recalbox-romfs2/systems` with a `roms` subfolder and a `system.ini` file.
-The `roms` subfolder contains readme files and optional pre-installed games.
-The `system.ini` is the system descriptor: edit this file accordingly.
+Isso criará uma nova pasta em `recalbox-romfs2/systems` com uma subpasta `roms` e um arquivo `system.ini`.
+A subpasta `roms` contém arquivos readme e jogos pré-instalados opcionais.
+O `system.ini` é o descritor do sistema: edite este arquivo adequadamente.
 
-When pre-installed games are copied to the target, contents of `systems/<system>/roms` are copied into `/recalbox/share_init/roms/<system>` 
+Quando jogos pré-instalados são copiados para o alvo, o conteúdo de `systems/<sistema>/roms` é copiado para `/recalbox/share_init/roms/<sistema>`
 
-## Generate system descriptor
+## Gerar descritor do sistema
 
-Generate the final system descriptor `systemlist.xml` into the target `/recalbox/share_init/system/.emulationstation/` from all `system.ini`
+Gere o descritor de sistema final `systemlist.xml` no alvo `/recalbox/share_init/system/.emulationstation/` a partir de todos os `system.ini`
 
-Usage: `python3 romfs.py -systems <systems root folder> -buildsystems <target file path>`
+Uso: `python3 romfs.py -systems <pasta raiz dos sistemas> -buildsystems <caminho do arquivo de destino>`
 
-Example:
+Exemplo:
 - `python3 romfs.py -systems ../systems -buildsystems ../output.xml`
 - `python3 ~/recalbox/packages/recalbox-romfs2/scripts/romfs.py -systems ~/recalbox/packages/recalbox-romfs2/systems -buildsystems ~/recalbox/output/target/recalbox/share_init/system/.emulationstation/systemlist.xml`
 
-## Copy to target
+## Copiar para o alvo
 
-Populate the final `share_init/roms` folder with all pre-installed games and all readme files.
+Popule a pasta final `share_init/roms` com todos os jogos pré-instalados e todos os arquivos readme.
 
-Usage: `python3 romfs.py -systems <systems root folder> -installroms <target roms path>`
+Uso: `python3 romfs.py -systems <pasta raiz dos sistemas> -installroms <caminho de destino das roms>`
 
-Example:
+Exemplo:
 - `python3 romfs.py -systems ../systems -installroms ~/recalbox/output/target/recalbox/share_init/roms`
 - `python3 ~/recalbox/packages/recalbox-romfs2/scripts/romfs.py -systems ~/recalbox/packages/recalbox-romfs2/systems -installroms ~/recalbox/output/target/recalbox/share_init/roms`
 
-| Tables   |      Are      |  Cool |
+| Tabelas   |      São      |  Legal |
 |----------|:-------------:|------:|
-| col 1 is |  left-aligned | $1600🖱️ ⌨️ 🎮 🕹️ 🔫|
-| col 2 is |    centered   |   $12 |
-| col 3 is | right-aligned |    $1 |
+| col 1 é  |  alinhada à esquerda | $1600 |
+| col 2 é  |    centralizada   |   $12 |
+| col 3 é  | alinhada à direita |    $1 |

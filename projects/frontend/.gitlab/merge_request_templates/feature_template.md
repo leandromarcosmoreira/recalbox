@@ -1,12 +1,12 @@
-Please make sure your MR is ready to be merged !
+Por favor, certifique-se de que sua MR está pronta para ser incorporada!
 
-- [ ] You added the changes in CHANGELOG.md
-- [ ] You described the MR as below
+- [ ] Você adicionou as alterações no CHANGELOG.md
+- [ ] Você descreveu a MR conforme abaixo
 
-Fixes #XXX
+Corrige #XXX
 
-Changes :
-- describe changes here
+Alterações:
+- descreva as alterações aqui
 
-Related to :
-- link other PR or issues here
+Relacionado a:
+- link para outros PR ou issues aqui

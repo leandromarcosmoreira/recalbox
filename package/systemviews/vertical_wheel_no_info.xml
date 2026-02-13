@@ -1,0 +1,7 @@
+<theme>
+
+	<formatVersion>4</formatVersion>
+	<include>./vertical_wheel_common.xml</include>	
+	<include>./common_info.xml</include>
+
+</theme>

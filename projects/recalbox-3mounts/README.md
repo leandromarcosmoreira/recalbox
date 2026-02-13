@@ -1,193 +1,98 @@
 # 3mounts
 
-Formerly USBmount.
+Anteriormente USBmount.
 
-The 3mounts package automatically mounts USB, MCC and HDD mass storage 
-devices (e.g., USB pen drives or HDs in USB enclosures, SDCard, internal 
-nvme and sata drives) when they are plugged in or in-place.
-The mountpoints (`/recalbox/share/externals/[usb|mmc|hdd][0-x]` by default),
-filesystem types to consider, and mount options are configurable. When 
-multiple devices are plugged in, the first available mountpoint is 
-automatically selected.
+O pacote 3mounts monta automaticamente dispositivos de armazenamento em massa USB, MCC e HDD (por exemplo, pendrives USB ou HDs em enclosures USB, cartão SD, drives nvme e sata internos) quando são conectados ou in-place.
+Os pontos de montagem (`/recalbox/share/externals/[usb|mmc|hdd][0-x]` por padrão), tipos de filesystem a serem considerados e opções de montagem são configuráveis. Quando vários dispositivos são conectados, o primeiro ponto de montagem disponível é automaticamente selecionado.
 
-If the device plugged provides a model name, a symbolic link at
-`/var/run/3mounts/MODELNAME` pointing to the mountpoint is automatically
-created.  When the device is not present anymore in the system (e.g.,
-after it has been unplugged), 3mounts deletes the symbolic links that
-were created.
+Se o dispositivo conectado fornecer um nome de modelo, um link simbólico em `/var/run/3mounts/MODELNAME` apontando para o ponto de montagem é automaticamente criado. Quando o dispositivo não está mais presente no sistema (por exemplo, após ter sido desconectado), o 3mounts exclui os links simbólicos que foram criados.
 
-The script that does the (un)mounting is called by the `udev` daemon.
-Therefore, 3mounts requires a 2.6 (or newer) kernel.
+O script que faz o (des)montagem é chamado pelo daemon `udev`. Portanto, o 3mounts requer um kernel 2.6 (ou mais recente).
 
-3mounts is intended as a lightweight solution which is independent of a
-desktop environment. Users which would like an icon to appear when an
-USB device is plugged in should use other alternatives.
+O 3mounts é destinado como uma solução leve que é independente de um ambiente de desktop. Os usuários que gostariam de ver um ícone quando um dispositivo USB é conectado devem usar outras alternativas.
 
-The comments in the configuration file `/etc/3mounts/3mounts.conf`
-describe how to configure the package.
+Os comentários no arquivo de configuração `/etc/3mounts/3mounts.conf` descrevem como configurar o pacote.
 
+## Comentários Gerais sobre Pendrives
 
-## Generic Comments about Flash Drives
+Os usuários devem estar cientes de que, independentemente do sistema de arquivos usado pelo dispositivo de armazenamento, *QUALQUER* sistema de arquivos que reside em memória flash se tornará ilegível após algum tempo. Esta situação unfortunate é intrínseca ao meio de armazenamento e pendrives de melhor qualidade executam uma operação de "wear levelling", distribuindo a carga de operações por todo o dispositivo. [*]
 
-Users should be aware that, independently of the filesystem used by the
-mass storage device, *ANY* filesystem that resides in flash memory will
-become unreadable after some time. This unfortunate situation is
-intrinsic to the storage medium and better quality flash drives perform
-a "wear levelling" operation, distributing the load of operations across
-the whole device. [*]
+Sistemas de arquivos usando memória flash e montados com a opção `sync` podem degradar mais cedo devido ao fato de que a opção de montagem sync força o sistema operacional a gravar dados com mais frequência no dispositivo do que se fosse montado sem a opção `sync`.
 
-Filesystems using flash memory and mounted with the `sync` option can
-degrade earlier due to the fact that the sync mount option forces the
-operating system to write data more frequently to the device than if it
-were mounted without the `sync` option.
+Então, por que montar sistemas de arquivos com a opção `sync`? A razão é manter os dados gravados no drive refletindo o que o usuário pensa que está no pendrive, e, mais importante, evitar o problema do usuário desconectar o dispositivo antes de terminar de receber dados que o kernel tem na memória do computador e que deve ser gravada no dispositivo.
 
-So, why mount filesystems with the `sync` option then? The reason is to
-keep the written data on the drive reflecting what the user thinks is on
-the flash drive, and, more importantly, to avoid the problem of the user
-unplugging the device before it is finished receiving data that the
-kernel has on the memory of the computer and that is meant to be written
-to the device.
+Se você não gosta da opção `sync` com seus sistemas de arquivos, então você pode removê-la do arquivo de configuração do 3mounts e usar seus dispositivos com melhor desempenho e maior vida útil. **MAS** você deve sempre garantir que usa o comando `sync` (em um shell) para garantir que não haja gravações pendentes para o dispositivo em questão, para que você não perca nenhum dado quando desconectar o dispositivo do computador.
 
-If you don't like the `sync` option with your filesystems, then you can
-remove it from the configuration file of 3mounts and use your devices
-with better performance and longer life time. **BUT** you should always
-make sure that you use the `sync` command (on a shell) to ensure that
-there is no writes pending for the device in question, so that you don't
-loose any data when you unplug the device from the computer.
+[*] Você pode ver se seus pendrives suportam wear levelling vendo as especificações técnicas de seus drives específicos no site do fabricante (por exemplo, o fabricante Kingston fornece essas informações sobre seus drives e outros provavelmente também fazem).
 
-[*] You can see if your flash drives support wear levelling by seeing
-    the technical specifications of your specific drives in the
-    manufacturer's site (e.g., the manufacturer Kingston provides such
-    information regarding its drives and others quite probably do that
-    too).
+Claro que o 3mounts não funciona apenas com pendrives. Discos rígidos comuns colocados em enclosures são perfeitamente usados com o 3mounts e o 3mounts, apesar de seu nome, pode montar drives conectados via portas Firewire, desde que o kernel tenha suporte para isso (a maioria dos kernels de distribuição, incluindo os enviados com Debian e Ubuntu, tem).
 
-Of course, 3mounts doesn't only work with flash drives. Common hard
-drives put into enclosures are perfectly used with 3mounts and
-3mounts, despite its name, can mount drives connected via Firewire
-ports, provided that the kernel has support for it (most distribution
-kernels, including the ones shipped with Debian and Ubuntu do).
+## Considerações Técnicas
 
-## Technical Considerations
+### Controle de Sistemas de Arquivos Montados pelo 3mounts
 
-### Control of Filesystems Mounted by 3mounts
+Você pode escolher quais sistemas de arquivos você quer que o 3mounts manipule automaticamente listando os tipos de sistemas de arquivos fornecidos pelo sistema operacional na variável de configuração `FILESYSTEMS`.
 
-You can choose which filesystems you want 3mounts to automatically
-handle by listing the filesystem types provided by the operating system
-in the configuration variable `FILESYSTEMS`.
+### Recomendações para Sistemas de Arquivos vfat
 
-### Recommendations for vfat Filesystems
+O sistema de arquivos vfat é um dos sistemas de arquivos mais comumente usados em pendrives. Infelizmente, devido à sua idade, é muito pobre em recursos e, em particular, não possui o controle de acesso mais básico presente em sistemas Unix, namely: permissões em arquivos.
 
-The vfat filesystem is one of the most commonly used filesystems in pen
-drives. Unfortunately, due to its age, it is very poor regarding
-features and, in particular, it doesn't feature the most basic access
-control present in Unix systems, namely: permissions on files.
+O Linux contorna isso criando permissões e restrições "virtuais" baseadas em quem montou o sistema de arquivos. Como o 3mounts é usado, o usuário atribuído ao sistema de arquivos vfat é, por padrão, root.
 
-Linux works around this by creating "virtual" permissions and
-restrictions based on who mounted the filesystem. As 3mounts is used,
-the user assigned to the vfat filesystem is, by default, root.
+Para uma configuração mais flexível, algumas opções úteis para sistemas de arquivos vfat são especificar explicitamente quem é o usuário e as permissões. Por favor, leia a página de manual do comando mount para obter detalhes.
 
-For a more flexible configuration, some useful options for vfat
-filesystems are to specify explicitly who the user and permissions are.
-Please, read the manpage of the mount command to get details.
+Um exemplo é especificar `-fstype=vfat,gid=floppy,dmask=0007,fmask=0117` na variável `FS_MOUNTOPTIONS` do arquivo de configuração. As opções específicas no exemplo significam que membros do grupo floppy podem ler e escrever no meio, mas ninguém mais pode acessá-lo.
 
-An example is to specify `-fstype=vfat,gid=floppy,dmask=0007,fmask=0117`
-in the `FS_MOUNTOPTIONS` variable of the configuration file. The
-particular options specified in the example mean that members of the
-floppy group can read from and write to the medium, but nobody else can
-access it.
+## Solução de Problemas do 3mounts
 
-## Troubleshooting 3mounts
+Nenhum software está livre de problemas e a situação não é diferente com o 3mounts. Para facilitar a solução de problemas, você pode tentar verificar o seguinte:
 
-No software is free of problems and the situation isn't different with
-3mounts. To ease the troubleshooting of problems, you may try to check
-the following:
+* Você tem HAL rodando? Qualquer daemon GNOME ou KDE automontando dispositivos?
 
-* Do you have HAL running? Any GNOME or KDE daemon automounting devices?
-
-* Let's suppose that the partition containing the filesystem that you
-  want 3mounts to automatically handle is `/dev/sda1` (your case may,
-  quite possibly, vary). Then, check the result of the following
-  command:
+* Vamos supor que a partição contendo o sistema de arquivos que você quer que o 3mounts manipule automaticamente é `/dev/sda1` (seu caso pode, muito possivelmente, variar). Então, verifique o resultado do seguinte comando:
 
         udevadm test --action=add /sys/class/block/sda1
 
-  The command above just gives diagnostics of what 3mounts would do
-  with the device, but it doesn't actually mount or interfere with the
-  device. It is intended for debugging purposes. Be careful that it
-  generates *a lot* of output. Many screens, depending on the device.
+  O comando acima apenas dá diagnósticos do que o 3mounts faria com o dispositivo, mas ele na verdade não monta ou interfere com o dispositivo. É destinado para fins de depuração. Cuidado que ele gera *muita* saída. Muitas telas, dependendo do dispositivo.
 
-* Under the same assumptions as the above, another good diagnostic tool
-  is the following:
+* Sob as mesmas suposições acima, outra boa ferramenta de diagnóstico é a seguinte:
 
         udevadm info -a -p $(udevadm info -q path -n /dev/sdb1)
 
+## Desmontando Sistemas de Arquivos com Segurança
 
-## Safely unmounting filesystems
+Como não é possível para o sistema detectar quando o dispositivo deve ser desmontado (tal informação só está presente quando o dispositivo já foi desconectado, o que é tarde demais para algumas limpezas, como descargar buffers não gravados no disco e marcar o sistema de arquivos como limpo), o usuário deve manualmente desmontar o dispositivo que foi automaticamente montado.
 
-As it is not possible for the system to detect when the device should be
-unmounted (such information is only present when the device has already
-been unplugged, which is too late for some clean ups, like flushing
-unwritten buffers to disk and marking the filesystem as clean), the user
-should manually unmount the device that were automatically mounted.
+Esta situação é semelhante às em ambientes de desktop gráficos onde o usuário tem que clicar em um ícone e informar ao sistema que deseja remover o dispositivo do computador.
 
-This situation is similar to those in graphical desktop environments
-where the user has to click on an icon and inform the system that it
-wants to remove the device from the computer.
+Uma solução recomendada para este problema é usar o comando `pummount` (fornecido pelo pacote `pmount`), que atua como um wrapper em torno do comando mount regular e permite que usuários normais (ou seja, não root) desmontem os sistemas de arquivos convenientemente.
 
-A recommended solution for this problem is to use the `pumount` command
-(provided by the `pmount` package), which acts as a wrapper around the
-regular mount command and lets regular users (i.e., not root) to unmount
-the filesystems, conveniently.
+**Aviso:** remover descuidadamente o dispositivo/sistema de arquivos sem primeiro desmontá-lo pode (e leva) a corrupção massiva do sistema de arquivos e deve ser executado apenas se você souber exatamente o que está fazendo.
 
-**Warning:** carelessly removing the device/filesystem without unmounting it
-first can (and does) lead to massive filesystem corruption and should
-only be performed if you know exactly what you are doing.
+## O Caso Especial de Sistemas de Arquivos FUSE
 
+Muitos usuários usam drives removíveis com sistemas de arquivos NTFS e o sistema de arquivos de espaço de usuário NTFS-3g, pois ele fornece mais flexibilidade do que o módulo nativo presente no kernel do Linux.
 
-## The Special Case of FUSE Filesystems
+Tais usuários têm dificuldade ao desmontar os sistemas de arquivos, pois eles estão presentes no sistema `/etc/mtab` com um tipo de sistema de arquivos de `fuseblk`, não com `ntfs` (ou `ntfs-3g`) como se poderia esperar.
 
-Many users use removable drives with NTFS filesystems and the
-user-space filesystem NTFS-3g, since it provides more flexibility than
-the native module present in the Linux kernel.
+Para tais sistemas de arquivos, pode ser conveniente:
 
-Such users have difficulty when unmounting the filesystems, since they
-are present in the system `/etc/mtab` with a filesystem type of `fuseblk`,
-not with `ntfs` (or `ntfs-3g`) as one might expect.
+* adicionar `ntfs-3g` à variável `FILESYSTEMS` de `/etc/3mounts/3mounts.conf` (para propósitos de montagem)
+* adicionar `fuseblk` à variável `FILESYSTEMS` de `/etc/usb/3mounts.conf` (para propósitos de desmontagem).
 
-For such filesystems, it may be convenient to:
+Comentários semelhantes podem se aplicar a outros sistemas de arquivos gerenciados por FUSE. Em geral, se você precisar de um sistema de arquivos FUSE, pode ser uma boa ideia adicionar o nome desse sistema de arquivos à variável `FILESYSTEMS`, bem como garantir que o sistema de arquivos especial `fuseblk` esteja contido nessa lista.
 
-* add `ntfs-3g` to `/etc/3mounts/3mounts.conf`'s variable `FILESYSTEMS`
-  (for mounting purposes)
-* add `fuseblk` to `/etc/usb/3mounts.conf`'s variable `FILESYSTEMS`
-  (for unmounting purposes).
+Esta subseção é uma adaptação de descrições feitas por Thomas Jancar e Jan Schulz.
 
-Similar comments may apply to other FUSE-managed filesystems.  In general,
-if you need a FUSE filesystem, it may be a good idea to add the name of
-that filesystem to the `FILESYSTEMS` variable as well as making sure that the
-special `fuseblk` filesystem is contained in that list.
+## Remontando Sistemas de Arquivos sem Remoção Física
 
+O 3mounts opera (leia: "monta ou desmonta sistemas de arquivos") com base em eventos emitidos pelo kernel Linux/udev. Consequentemente, se você desmontar um sistema de arquivos e quiser montá-lo novamente, você tem básicamente duas escolhas:
 
-This subsection is an adaptation of descriptions made by Thomas Jancar
-and Jan Schulz.
+1. desconectar e conectar o dispositivo, o que pode não ser desejado, por várias razões.
+2. fazer o kernel/udev gerar outro evento para que o 3mounts saiba que tem algum trabalho a fazer.
 
-
-## Remounting filesystems without physical removal
-
-3mounts operates (read: "mounts or unmounts filesystems") based on events
-issued by the Linux kernel/udev. As a consequence, if you happen to unmount a
-filesystem and want to mount it again, you have basically two choices:
-
-1. unplug and plug the device, which may not be desired, for a number of
-    reasons.
-2. make the kernel/udev generate another event so that 3mounts knows that it
-    has some work to do.
-
-The latter can be accomplished by the use of the command
+Isso último pode ser accomplished pelo uso do comando
 
 	udevadm trigger --action=add /dev/sdd2
 
-where `/dev/sdd2` should be substituted with the proper partition. This
-command is likely needed to be run with superuser privileges.
-Triggering kernel events is also a way to get a particular filesystem
-mounted after a cold boot.
-
+onde `/dev/sdd2` deve ser substituído pela partição correta. Este comando provavelmente precisa ser executado com privilégios de superusuário. Acionar eventos de kernel também é uma forma de obter um sistema de arquivos específico montado após uma inicialização a frio.

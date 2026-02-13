@@ -2,18 +2,18 @@
 
 ## EEPROM
 
-Program the eeprom of Recalbox RGB Dual
+Programe a EEPROM do Recalbox RGB Dual
 
-Once programmed, the hat creates files in `/sys/firmware/devicetree/base/hat/` and the dtb is automatically loaded from the eeprom.
+Uma vez programada, a HAT cria arquivos em `/sys/firmware/devicetree/base/hat/` e o dtb é carregado automaticamente da EEPROM.
 
-## Kernel module - based on cpasjuste rpi-dpidac
+## Módulo do kernel - baseado no rpi-dpidac do cpasjuste
 
 https://github.com/Cpasjuste/rpi-dpidac/
 
-Building (cross compilation, for raspbian os)
+Compilação (compilação cruzada, para raspbian os)
 - make -f Makefile.cross ARCH=arm CROSS_COMPILE=arm-linux-gnueabihf- KERNELDIR=/path/to/linux
 
-## Resources
+## Recursos
 ### DTS
 https://www.embedded.com/linux-device-driver-development-the-pin-control-subsystem/
 https://gist.github.com/0xff07/d286f45649a7e05c32c4523631bd15e0

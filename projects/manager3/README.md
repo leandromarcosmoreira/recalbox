@@ -12,47 +12,47 @@
 
 # Recalbox Manager v3
 
-## Install Quasar CLI
+## Instalar Quasar CLI
 ```bash
 yarn global add @quasar/cli
-# or
+# ou
 npm i -g @quasar/cli
 ```
 
 
-## Install the dependencies
+## Instalar as dependências
 ```bash
 yarn
-# or
+# ou
 npm install
 
-For build : set the env var 'API_IP' in your server config
+Para compilar: defina a variável de ambiente 'API_IP' na configuração do seu servidor
 ```
 
-## Create .env file on project root with your local API IP
+## Criar arquivo .env na raiz do projeto com seu IP de API local
 ```bash
 API_IP=recalbox.local
 ```
 
-## Start the app in development mode (hot-code reloading, error reporting, etc.)
+## Iniciar o aplicativo em modo de desenvolvimento (hot-code reloading, relatório de erros, etc.)
 ```bash
 quasar dev
 ```
 
 
-## Lint the files
+## Verificar os arquivos
 ```bash
 yarn lint
-# or
+# ou
 npm run lint
 ```
 
 
 
-## Build the app for production
+## Compilar o aplicativo para produção
 ```bash
 quasar build
 ```
 
-## Customize the configuration
-See [Configuring quasar.config.mjs](https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js).
+## Personalizar a configuração
+Veja [Configuring quasar.config.mjs](https://v2.quasar.dev/quasar-cli-webpack/quasar-config-js).

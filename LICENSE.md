@@ -1,10 +1,10 @@
-License
+Licença
 -------
 
-Redistribution and use of the RECALBOX code or any derivative works are permitted provided that the following conditions are met:
+Redistribuição e uso do código RECALBOX ou qualquer trabalho derivado são permitidos desde que as seguintes condições sejam atendidas:
 
-* Redistributions may not be sold without authorization, nor may they be used in a commercial product or activity.
-* Redistributions that are modified from the original source must include the complete source code, including the source code for all components used by a binary built from the modified sources.
-* Redistributions must reproduce the above copyright notice, this list of conditions and the following disclaimer in the documentation and/or other materials provided with the distribution.
+* Redistribuições não podem ser vendidas sem autorização, nem podem ser usadas em um produto ou atividade comercial.
+* Redistribuições modificadas do código-fonte original devem incluir o código-fonte completo, incluindo o código-fonte de todos os componentes usados por um binário construído a partir das fontes modificadas.
+* As redistribuições devem reproduzir o aviso de direitos autorais acima, esta lista de condições e a seguinte exoneração na documentação e/ou outros materiais fornecidos com a distribuição.
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL, SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+Este software é fornecido pelos titulares dos direitos autorais e colaboradores "como está" e quaisquer garantias expressas ou implícitas, incluindo, mas não limitado a, garantias implícitas de comercialização e adequação a um propósito específico são descartadas. Em nenhum caso o proprietário dos direitos autorais ou colaboradores serão responsáveis por quaisquer danos diretos, indiretos, incidentais, especiais, exemplares ou consequenciais (incluindo, mas não limitado a, aquisição de bens ou serviços substitutos; perda de uso, dados ou lucros; ou interrupção de negócios) no entanto causados e em qualquer teoria de responsabilidade, seja em contrato, responsabilidade estrita ou ato ilícito (incluindo negligência ou de outra forma) decorrente de qualquer forma do uso deste software, mesmo se aconselhado da possibilidade de tais danos.

@@ -1,6 +1,6 @@
 piboy-tester
 ~~~~~~~~~~~~
 
-Simple utility to test if current case is a PiBoy DMG or PiBoy XRS.
+Utilitário simples para testar se o case atual é um PiBoy DMG ou PiBoy XRS.
 
-Should return 198 or 70 if case is a piboy
+Deve retornar 198 ou 70 se o case for um piboy

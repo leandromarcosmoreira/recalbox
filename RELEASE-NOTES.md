@@ -1,8 +1,8 @@
-# Release notes
+# Notas de versão
 
-This file will be processed and will be distributed with Recalbox Releases.
-The text, located between the first `## Version XXX` and the second one, will appear
-as release notes for end user on a Recalbox upgrade.
+Este arquivo será processado e distribuído com os lançamentos do Recalbox.
+O texto, localizado entre o primeiro `## Versão XXX` e o segundo, será exibido
+como notas de versão para o usuário final em uma atualização do Recalbox.
 
 ## Version 10
 
@@ -508,6 +508,58 @@ __Français__ :
 - Bump libretro-genesisplusgxwide
 - Bump libretro-desmume
 - Bump libretro-melonds
+
+
+__Português (Brasil)__:
+
+### Novidades
+
+#### Hardware
+- Suporte ao RPi5 2GB
+- Suporte ao RPi500
+- Suporte ao Steam Deck LCD e OLED
+- Suporte ao RGB DUAL 2
+- Suporte ao RGB JAMMA 2
+- Suporte ao Recalbox Card Reader
+
+#### Cases
+- Suporte ao case 64Pi
+- Suporte ao Argon 40 ArgonOne v3 para RPi5
+- Suporte ao DreamCase
+
+#### Controles
+- Suporte ao Taito Trackball e Spinner
+- Suporte ao Baolian Spinner
+- Suporte ao DIY Spinner (Arduino)
+
+#### Emuladores
+- Model 3 (supermodel) no Pi5
+- Emulador XBOX (xemu)
+- Gamecube libretro dolphin para rpi5
+- Tamagotchi (core tamalibretro)
+- Gerenciador de Temas: instale, desinstale e atualize temas do repositório online
+- Novos logos de sistema no frontend
+- Novo design dos menus
+- Suporte a NetPlay para cores libretro-gpsp e libretro-dosbox-pure
+- Suporte a One Game One Rom (1G1R)
+
+### Melhorias
+- Opção "Salto rápido" para navegar em listas grandes
+- Opção para desativar rolagem ultrarrápida
+- Suporte melhorado a disco removível/interno
+- Melhorias no Bluetooth (reconexão automática)
+- Diversas melhorias nas atualizações de listas de jogos
+
+### Correções
+- Correção de jogos ocultos/vazios exibidos após operações
+- Correção do ratio selecionado por jogo
+- Correção do scanner de BIOS que deixava a inicialização lenta
+- Correção do RetroAchievements para novos sistemas
+- Diversas correções no scraper e na interface
+
+### Atualizações
+- RetroArch 1.21.0
+- Atualização de diversos cores libretro (mame, snes9x, ppsspp, dolphin, etc.)
 
 
 ## Version 9.2.3-Pulstar
