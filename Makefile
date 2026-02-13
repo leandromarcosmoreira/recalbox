@@ -1,5 +1,6 @@
 PWD := $(shell pwd)
 DL_DIR := $(if $(BR2_DL_DIR),$(BR2_DL_DIR),$(PWD)/dl)
+MERGETOBR_FLAGS := $(if $(CI),-f,)
 
 .PHONY: merge buildBR
 
@@ -19,7 +20,7 @@ endif
 
 
 merge:
-	CUSTOM_DIR=$(PWD)/custom BUILDROOT_DIR=$(PWD)/buildroot $(PWD)/scripts/linux/mergeToBR.sh
+	CUSTOM_DIR=$(PWD)/custom BUILDROOT_DIR=$(PWD)/buildroot $(PWD)/scripts/linux/mergeToBR.sh $(MERGETOBR_FLAGS)
 
 buildBR:
 	@echo $(MAKEFLAGS) $(MAKECMDGOALS)
