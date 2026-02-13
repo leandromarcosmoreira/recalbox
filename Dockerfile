@@ -30,8 +30,7 @@ WORKDIR /work
 
 CMD echo ">>> Setting recalbox version to ${RECALBOX_VERSION}" && echo "${RECALBOX_VERSION}" > board/recalbox/fsoverlay/recalbox/recalbox.version && \
     echo ">>> Marking /work and /work/buildroot as safe git directories" && git config --global --add safe.directory /work && git config --global --add safe.directory /work/buildroot && \
-    echo ">>> Reseting buildroot submodule" && ( cd buildroot && git reset HEAD --hard && git clean -dfx ) && \
-    echo ">>> Fetching buildroot submodule" && ( git submodule update --init buildroot ) && \
+    echo ">>> Reseting buildroot working tree" && ( cd buildroot && git reset --hard HEAD && git clean -dfx ) && \
     echo ">>> Making recalbox-${ARCH}_defconfig" && make recalbox-${ARCH}_defconfig && \
     export RECALBOX_CCACHE=${RECALBOX_CCACHE_ENABLED:+"BR2_CCACHE=y BR2_CCACHE_DIR=/share/ccache BR2_CCACHE_INITIAL_SETUP=--max-size=500G BR2_CCACHE_USE_BASEDIR=y"} && \
     echo ">>> Make with command : BR2_DL_DIR="/share/dl" $RECALBOX_CCACHE $PACKAGE" && \
