@@ -24,7 +24,8 @@ jobs:
         run: |
           set -euo pipefail
           git config submodule.buildroot.url https://git.busybox.net/buildroot
-          git submodule update --init --recursive buildroot
+          git submodule sync --recursive
+          git submodule update --init --recursive
 
       - name: Install GH CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
