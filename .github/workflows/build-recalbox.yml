@@ -20,12 +20,6 @@ jobs:
           submodules: 'recursive'
           fetch-depth: 0
 
-      - name: Update buildroot submodule to correct commit
-        run: |
-          cd buildroot
-          git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-          git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-
       - name: Ensure buildroot directory exists
         run: |
           set -euo pipefail
@@ -38,6 +32,12 @@ jobs:
           else
             echo "Diretório buildroot já existe, mantendo configuração atual."
           fi
+
+      - name: Update buildroot to correct commit
+        run: |
+          cd buildroot
+          git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+          git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
 
       - name: Install GH CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
