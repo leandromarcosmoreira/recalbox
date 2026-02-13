@@ -1,36 +1,106 @@
-name: Build Recalbox for Raspberry Pi 5
+name: Build Recalbox
 
 on:
   workflow_dispatch:
-  push:
-    branches:
-      - main
-      
-jobs:
-  build_rpi5:
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    name: Build RPi5 (aarch64) Image
+    inputs:
+      skip_cache:
+        description: 'Skip cache and do clean build'
+        required: false
+        default: 'false'
+        type: boolean
+      architectures:
+        description: 'Architectures to build (comma separated)'
+        required: false
+        default: 'x86_64'
+      build_target:
+        description: 'Build target: all, toolchain, system, packages, image'
+        required: false
+        default: 'all'
+        type: choice
+        options:
+          - all
+          - toolchain
+          - system
+          - packages
+          - image
 
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  detect_changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      changed_components: ${{ steps.detect.outputs.changed_components }}
+      needs_toolchain: ${{ steps.detect.outputs.needs_toolchain }}
+      needs_system: ${{ steps.detect.outputs.needs_system }}
+      needs_packages: ${{ steps.detect.outputs.needs_packages }}
+      needs_image: ${{ steps.detect.outputs.needs_image }}
     steps:
       - name: Check out repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get previous commit hash
+        id: prev_commit
+        run: |
+          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          echo "prev_commit=$PREV_COMMIT" >> $GITHUB_OUTPUT
+
+      - name: Detect changed files
+        id: detect
+        run: |
+          CHANGED_FILES=$(git diff --name-only ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'package/*' 'board/*' 'Config.in*' 'makefile' 2>/dev/null || echo "")
+
+          NEEDS_TOOLCHAIN=false
+          NEEDS_SYSTEM=false
+          NEEDS_PACKAGES=false
+          NEEDS_IMAGE=true
+
+          if echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in)'; then
+            NEEDS_TOOLCHAIN=true
+            NEEDS_SYSTEM=true
+            NEEDS_PACKAGES=true
+          elif echo "$CHANGED_FILES" | grep -qE '^board/'; then
+            NEEDS_SYSTEM=true
+            NEEDS_PACKAGES=true
+          elif echo "$CHANGED_FILES" | grep -qE '^package/'; then
+            NEEDS_PACKAGES=true
+          fi
+
+          echo "changed_components=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "needs_toolchain=$NEEDS_TOOLCHAIN" >> $GITHUB_OUTPUT
+          echo "needs_system=$NEEDS_SYSTEM" >> $GITHUB_OUTPUT
+          echo "needs_packages=$NEEDS_PACKAGES" >> $GITHUB_OUTPUT
+          echo "needs_image=$NEEDS_IMAGE" >> $GITHUB_OUTPUT
+
+  setup:
+    name: Setup Build Environment
+    runs-on: ubuntu-latest
+    needs: detect_changes
+    outputs:
+      slug: ${{ steps.version_vars.outputs.slug }}
+      date: ${{ steps.version_vars.outputs.date }}
+      datetime: ${{ steps.version_vars.outputs.datetime }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
         with:
           submodules: 'recursive'
-          fetch-depth: 0
+          fetch-depth: 1
 
       - name: Ensure buildroot directory exists
         run: |
           set -euo pipefail
           if [ ! -d buildroot ]; then
-            echo "Clonando buildroot (não encontrado como submódulo)..."
-            # Usa uma tag estável do Buildroot compatível com os patches do Recalbox
-            # Se necessário, ajuste esta tag para a versão esperada pelos patches
+            echo "Clonando buildroot..."
             git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot || \
             git clone --depth 1 https://git.busybox.net/buildroot buildroot
           else
-            echo "Diretório buildroot já existe, mantendo configuração atual."
+            echo "Diretório buildroot já existe."
           fi
 
       - name: Update buildroot to correct commit
@@ -39,67 +109,443 @@ jobs:
           git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
           git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
 
+      - name: Get version info
+        id: version_vars
+        run: |
+          echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
+          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      - name: Restore Buildroot Downloads Cache
+        if: ${{ !inputs.skip_cache }}
+        uses: actions/cache@v4
+        with:
+          path: buildroot/dl
+          key: buildroot-dl-${{ runner.os }}-${{ hashFiles('board/**/ Config.in*') }}
+          restore-keys: |
+            buildroot-dl-${{ runner.os }}-
+
+      - name: Restore ccache Cache
+        if: ${{ !inputs.skip_cache }}
+        uses: actions/cache@v4
+        with:
+          path: ~/.ccache
+          key: recalbox-ccache-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            recalbox-ccache-${{ runner.os }}-
+
+      - name: Build Docker Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: recalbox-build:latest
+          cache-from: type=gha,scope=recalbox
+          cache-to: type=gha,mode=max,scope=recalbox
+
+      - name: Upload Docker Image
+        run: |
+          docker save recalbox-build:latest -o recalbox-build.tar
+
+      - name: Upload setup artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: setup-artifact
+          path: |
+            recalbox-build.tar
+          retention-days: 1
+
+  build_x86_64:
+    name: Build x86_64
+    runs-on: ubuntu-latest
+    needs: [setup, detect_changes]
+    if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64'
+    env:
+      ARCH: x86_64
+    steps:
+      - name: Download setup artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: setup-artifact
+          path: .
+
+      - name: Load Docker Image
+        run: docker load -i recalbox-build.tar
+
+      - name: Restore caches by architecture
+        if: ${{ !inputs.skip_cache }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            buildroot/output
+            buildroot/.config
+          key: build-${{ env.ARCH }}-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ env.ARCH }}-${{ runner.os }}-
+
+      - name: Build Toolchain
+        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=x86_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log
+
+      - name: Upload toolchain artifact
+        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-x86_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            toolchain.log
+          retention-days: 7
+
+      - name: Build System
+        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=x86_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log
+
+      - name: Upload system artifact
+        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-x86_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            system.log
+          retention-days: 7
+
+      - name: Build Packages
+        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=x86_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log
+
+      - name: Upload packages artifact
+        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-x86_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            packages.log
+          retention-days: 7
+
+      - name: Save build state for cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-x86_64
+          path: |
+            buildroot/output
+            buildroot/.config
+          retention-days: 7
+
+  build_rpi5:
+    name: Build RPi5
+    runs-on: ubuntu-latest
+    needs: [setup, detect_changes]
+    if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64'
+    env:
+      ARCH: rpi5_64
+    steps:
+      - name: Download setup artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: setup-artifact
+          path: .
+
+      - name: Load Docker Image
+        run: docker load -i recalbox-build.tar
+
+      - name: Restore caches by architecture
+        if: ${{ !inputs.skip_cache }}
+        uses: actions/cache@v4
+        with:
+          path: |
+            buildroot/output
+            buildroot/.config
+          key: build-${{ env.ARCH }}-${{ runner.os }}-${{ github.sha }}
+          restore-keys: |
+            build-${{ env.ARCH }}-${{ runner.os }}-
+
+      - name: Build Toolchain
+        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=rpi5_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log
+
+      - name: Upload toolchain artifact
+        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: toolchain-rpi5_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            toolchain.log
+          retention-days: 7
+
+      - name: Build System
+        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=rpi5_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log
+
+      - name: Upload system artifact
+        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: system-rpi5_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            system.log
+          retention-days: 7
+
+      - name: Build Packages
+        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        run: |
+          set -euo pipefail
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -e "ARCH=rpi5_64" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log
+
+      - name: Upload packages artifact
+        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        uses: actions/upload-artifact@v4
+        with:
+          name: packages-rpi5_64
+          path: |
+            buildroot/output
+            buildroot/.config
+            packages.log
+          retention-days: 7
+
+      - name: Save build state for cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-rpi5_64
+          path: |
+            buildroot/output
+            buildroot/.config
+          retention-days: 7
+
+  build_image:
+    name: Build Final Images
+    runs-on: ubuntu-latest
+    needs: [setup, detect_changes, build_x86_64, build_rpi5]
+    if: needs.detect_changes.outputs.needs_image == 'true' || inputs.build_target == 'image' || inputs.build_target == 'all'
+    steps:
+      - name: Download setup artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: setup-artifact
+          path: .
+
+      - name: Load Docker Image
+        run: docker load -i recalbox-build.tar
+
+      - name: Get version info
+        id: version_vars
+        run: |
+          echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
+          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
+          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+
+      - name: Download x86_64 build artifacts
+        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: build-x86_64
+          path: build-x86_64
+          merge-multiple: true
+
+      - name: Download rpi5_64 build artifacts
+        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        uses: actions/download-artifact@v4
+        with:
+          name: build-rpi5_64
+          path: build-rpi5_64
+          merge-multiple: true
+
+      - name: Build x86_64 Image
+        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        run: |
+          set -euo pipefail
+          
+          if [ -d "build-x86_64/output" ]; then
+            cp -r build-x86_64/output buildroot/
+            cp build-x86_64/.config buildroot/ 2>/dev/null || true
+          fi
+          
+          OUTPUTDIR="$(pwd)/output"
+          mkdir -p "${OUTPUTDIR}"
+
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -v "${OUTPUTDIR}:/work/output" \
+            -e "ARCH=x86_64" \
+            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-x86_64.log
+
+      - name: Prepare x86_64 Artifacts
+        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        run: |
+          set -euo pipefail
+          if [ -f "output/images/recalbox/recalbox.img" ]; then
+            mkdir -p dist/x86_64
+            cp output/images/recalbox/* dist/x86_64/
+            cp build-x86_64.log dist/x86_64/build.log
+            cd dist/x86_64
+            sha256sum * > SHA256SUMS.txt
+          fi
+
+      - name: Build RPi5 Image
+        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        run: |
+          set -euo pipefail
+          
+          rm -rf buildroot/output buildroot/.config 2>/dev/null || true
+          
+          if [ -d "build-rpi5_64/output" ]; then
+            cp -r build-rpi5_64/output buildroot/
+            cp build-rpi5_64/.config buildroot/ 2>/dev/null || true
+          fi
+          
+          OUTPUTDIR="$(pwd)/output"
+          mkdir -p "${OUTPUTDIR}"
+
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/work" \
+            -v "${OUTPUTDIR}:/work/output" \
+            -e "ARCH=rpi5_64" \
+            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-rpi5_64.log
+
+      - name: Prepare RPi5 Artifacts
+        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        run: |
+          set -euo pipefail
+          if [ -f "output/images/recalbox/recalbox.img" ]; then
+            mkdir -p dist/rpi5_64
+            cp output/images/recalbox/* dist/rpi5_64/
+            cp build-rpi5_64.log dist/rpi5_64/build.log
+            cd dist/rpi5_64
+            sha256sum * > SHA256SUMS.txt
+          fi
+
+      - name: Verify Builds
+        run: |
+          echo "=== x86_64 ==="
+          ls -lh dist/x86_64/ 2>/dev/null || echo "No x86_64 artifacts"
+          echo ""
+          echo "=== rpi5_64 ==="
+          ls -lh dist/rpi5_64/ 2>/dev/null || echo "No rpi5_64 artifacts"
+
+      - name: Upload All Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: recalbox-final-images
+          path: |
+            dist/
+          retention-days: 7
+
       - name: Install GH CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
         with:
           gh-cli-version: 2.65.0
 
-      - name: Get current date and commit slug
-        id: version_vars
-        run: |
-          echo "date=$(date '+%Y/%m/%d')" >> $GITHUB_OUTPUT
-          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
-
-      - name: Build Recalbox Docker Image
-        run: |
-          docker build -t "recalbox-rpi5_64" .
-
-      - name: Compile Recalbox
-        run: |
-          set -euo pipefail
-          WORKDIR="$(pwd)"
-          OUTPUTDIR="${WORKDIR}/output"
-          mkdir -p "${OUTPUTDIR}"
-          
-          # Note: The original build script uses pre-existing cache directories
-          # (/recalbox-builds/dl and /recalbox-builds/ccaches) which are not available
-          # in standard GitHub runners. This build will be slower as it will
-          # download all dependencies every time.
-          # For faster builds, configure self-hosted runners with cached volumes
-          # or implement the actions/cache action for the 'buildroot/dl' directory.
-          
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "${WORKDIR}:/work" \
-            -v "${OUTPUTDIR}:/work/output" \
-            -e "ARCH=rpi5_64" \
-            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            "recalbox-rpi5_64" 2>&1 | tee build.log
-
-      - name: Prepare Artifacts
-        run: |
-          DIST_DIR="dist/rpi5_64"
-          mkdir -p "${DIST_DIR}"
-          cp output/images/recalbox/* "${DIST_DIR}/"
-          echo "Image files in ${DIST_DIR}:"
-          ls -lR "${DIST_DIR}"
-
-      - name: Upload Recalbox Image Artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: recalbox-rpi5_64-${{ steps.version_vars.outputs.slug }}
-          path: |
-            dist/rpi5_64/
-            build.log
-          retention-days: 7
-
-      - name: Publish GitHub Release with image
+      - name: Create GitHub Releases
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          set -euo pipefail
-          TAG="rpi5_64-${{ steps.version_vars.outputs.slug }}-${{ github.run_number }}"
-          echo "Creating release ${TAG}..."
-          gh release create "${TAG}" dist/rpi5_64/* \
-            --title "Recalbox RPi5 image ${TAG}" \
-            --notes "Automated build for Raspberry Pi 5 (aarch64) from workflow run ${{ github.run_id }}."
+          TAG_BASE="${{ steps.version_vars.outputs.slug }}-${{ github.run_number }}"
+          
+          for ARCH in x86_64 rpi5_64; do
+            ARCH_DIR="dist/${ARCH}"
+            if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
+              TAG="${ARCH}-${TAG_BASE}"
+              echo "Creating release for ${ARCH}..."
+              
+              cat > release_notes.md << EOF
+              # Recalbox ${ARCH} Build
+
+              **Build Date:** ${{ steps.version_vars.outputs.datetime }}
+              **Architecture:** ${ARCH}
+              **Commit:** ${{ github.sha }}
+              **Workflow:** #${{ github.run_number }}
+
+              ## Downloads
+
+              | File | SHA256 |
+              |------|--------|
+              EOF
+
+              for f in "$ARCH_DIR"/*.img "$ARCH_DIR"/*.zip; do
+                if [ -f "$f" ]; then
+                  SHASUM=$(sha256sum "$f" | cut -d' ' -f1)
+                  echo "| $(basename $f) | \`$SHASUM\` |" >> release_notes.md
+                fi
+              done
+
+              echo "" >> release_notes.md
+              echo "## Build Log" >> release_notes.md
+              echo "See attached build.log for full build details." >> release_notes.md
+
+              gh release create "${TAG}" "${ARCH_DIR}"/* \
+                --title "Recalbox ${ARCH} ${TAG_BASE}" \
+                --notes-file release_notes.md
+            fi
+          done

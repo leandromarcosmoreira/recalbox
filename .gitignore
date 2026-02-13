@@ -31,3 +31,12 @@ dist
 # this is (over)written by `recaldocker.sh` or `.gitlab-ci.yml`
 /board/recalbox/fsoverlay/recalbox/recalbox.version
 scripts/release/recalbox*
+
+# Build cache directories
+/.build_cache
+/build_logs
+/buildroot/output
+/buildroot/.config
+
+# Build artifacts
+/dist
