@@ -29,6 +29,7 @@ RUN mkdir -p /work
 WORKDIR /work
 
 CMD echo ">>> Setting recalbox version to ${RECALBOX_VERSION}" && echo "${RECALBOX_VERSION}" > board/recalbox/fsoverlay/recalbox/recalbox.version && \
+    echo ">>> Marking /work/buildroot as safe git directory" && git config --global --add safe.directory /work/buildroot && \
     echo ">>> Reseting buildroot submodule" && ( cd buildroot && git reset HEAD --hard && git clean -dfx ) && \
     echo ">>> Fetching buildroot submodule" && ( git submodule update --init buildroot ) && \
     echo ">>> Making recalbox-${ARCH}_defconfig" && make recalbox-${ARCH}_defconfig && \
