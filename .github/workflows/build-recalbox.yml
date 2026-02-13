@@ -25,6 +25,9 @@ jobs:
           set -euo pipefail
           if [ ! -d buildroot ]; then
             echo "Clonando buildroot (não encontrado como submódulo)..."
+            # Usa uma tag estável do Buildroot compatível com os patches do Recalbox
+            # Se necessário, ajuste esta tag para a versão esperada pelos patches
+            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot || \
             git clone --depth 1 https://git.busybox.net/buildroot buildroot
           else
             echo "Diretório buildroot já existe, mantendo configuração atual."
