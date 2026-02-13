@@ -20,12 +20,15 @@ jobs:
           # Required for the Docker build context and for the build script to run
           submodules: 'recursive'
 
-      - name: Initialize buildroot submodule
+      - name: Ensure buildroot directory exists
         run: |
           set -euo pipefail
-          git config submodule.buildroot.url https://git.busybox.net/buildroot
-          git submodule sync --recursive
-          git submodule update --init --recursive
+          if [ ! -d buildroot ]; then
+            echo "Clonando buildroot (não encontrado como submódulo)..."
+            git clone --depth 1 https://git.busybox.net/buildroot buildroot
+          else
+            echo "Diretório buildroot já existe, mantendo configuração atual."
+          fi
 
       - name: Install GH CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
