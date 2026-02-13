@@ -1,6 +1,8 @@
 recalbox
-========
+=======
 ![](https://s3-eu-west-1.amazonaws.com/forums.recalbox.com/8d81e556-aefb-4729-ad2f-9d7386eff4cd.png)
+
+> **Nota**: Este repositório é um fork de [https://github.com/recalbox/recalbox-os](https://github.com/recalbox/recalbox-os).
 
 Bem-vindo ao repositório principal do Recalbox.
 
