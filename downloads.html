@@ -155,9 +155,15 @@
         
         .checksum {
             font-family: 'Courier New', monospace;
-            font-size: 0.85rem;
+            font-size: 0.75rem;
             color: #a0a0a0;
             word-break: break-all;
+        }
+        
+        .checksum-type {
+            font-size: 0.65rem;
+            color: #e94560;
+            margin-left: 4px;
         }
         
         .loading {
@@ -270,6 +276,34 @@
             'rpi5_64': 'Raspberry Pi 5'
         };
         
+        async function fetchChecksums(assetName) {
+            const checksumPatterns = [
+                `BLAKE3SUMS.txt`,
+                `SHA256SUMS.txt`
+            ];
+            
+            try {
+                for (const checksumFile of checksumPatterns) {
+                    const response = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/dist/${assetName.split('.img')[0]}/${checksumFile}`);
+                    if (response.ok) {
+                        const text = await response.text();
+                        const lines = text.split('\n');
+                        for (const line of lines) {
+                            if (line.includes(assetName)) {
+                                const parts = line.trim().split(/\s+/);
+                                if (parts.length >= 2) {
+                                    return { hash: parts[0], type: checksumFile.replace('SUMS.txt', '') };
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not fetch checksums:', e);
+            }
+            return null;
+        }
+        
         async function fetchReleases() {
             const contentDiv = document.getElementById('content');
             
@@ -342,6 +376,7 @@
                                     <tr>
                                         <th>File</th>
                                         <th>Size</th>
+                                        <th>Checksum</th>
                                         <th>Download</th>
                                     </tr>
                                 </thead>
@@ -354,6 +389,7 @@
                             <tr>
                                 <td>${asset.name}</td>
                                 <td>${size}</td>
+                                <td><code class="checksum">Calculating...</code></td>
                                 <td><a href="${asset.browser_download_url}" class="download-btn" download>Download</a></td>
                             </tr>
                         `;

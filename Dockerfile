@@ -61,7 +61,13 @@ RUN apt-get update -y && \
         xsltproc \
         patch \
         ccache \
+        curl \
         && rm -rf /var/lib/apt/lists/*
+
+RUN curl -sL https://github.com/BLAKE3-team/BLAKE3/releases/download/1.5.4/b3sum-bin-1.5.4-x86_64-unknown-linux-gnu.zip -o /tmp/b3.zip && \
+    unzip -o /tmp/b3.zip -d /usr/local/bin && \
+    chmod +x /usr/local/bin/b3sum && \
+    rm /tmp/b3.zip
 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen
@@ -69,15 +75,6 @@ RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
 RUN mkdir -p /work /share/dl /share/ccache
 WORKDIR /work
 
-CMD echo ">>> Recalbox Build" && \
-    echo ">>> Version: ${RECALBOX_VERSION}" && \
-    echo ">>> Architecture: ${ARCH}" && \
-    echo ">>> Make Jobs: ${MAKE_JOBS:-auto}" && \
-    echo "${RECALBOX_VERSION}" > board/recalbox/fsoverlay/recalbox/recalbox.version && \
-    git config --global --add safe.directory /work && \
-    git config --global --add safe.directory /work/buildroot && \
-    ( cd buildroot && git reset --hard HEAD && git clean -dfx ) && \
-    make recalbox-${ARCH}_defconfig && \
-    JOBS_FLAG=$( [ -n "${MAKE_JOBS}" ] && echo "-j${MAKE_JOBS}" || echo "" ) && \
-    BR2_CCACHE_FLAG=$( [ "${RECALBOX_CCACHE_ENABLED}" = "1" ] && echo "BR2_CCACHE=y BR2_CCACHE_DIR=/share/ccache BR2_CCACHE_INITIAL_SETUP=--max-size=500G BR2_CCACHE_USE_BASEDIR=y" || echo "" ) && \
-    make BR2_DL_DIR="/share/dl" ${BR2_CCACHE_FLAG} ${JOBS_FLAG}
+ENTRYPOINT ["/bin/bash", "-c"]
+
+CMD ["echo 'Build container ready'"]
