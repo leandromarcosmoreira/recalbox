@@ -1,0 +1,66 @@
+
+#pragma once
+
+#include "guis/menus/base/Menu.h"
+
+// Forward declaration
+class SystemManager;
+class SystemData;
+
+class MenuGamelistGameDeleteOptions : public Menu
+                                       , private ISubMenuSelected
+                                       , private IActionTriggered
+{
+  public:
+    explicit MenuGamelistGameDeleteOptions(WindowManager& window, ISimpleGameListView& view, FileData& game);
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+  private:
+    enum class Components
+    {
+      Delete,
+      Advanced,
+      DoDelete,
+      DoNotDelete,
+    };
+
+    //! View reference
+    ISimpleGameListView& mView;
+    //! Game reference
+    FileData& mGame;
+
+    HashSet<Path> mGameFiles;
+    HashSet<Path> mExtraFiles;
+    HashSet<Path> mMediaFiles;
+    HashSet<Path> mSaveFiles;
+
+    /*!
+     * @brief Build footer according to the game name
+     * @param game Game
+     * @return Footer string
+     */
+    String GetFooter(FileData& game);
+
+    //! Build popup message
+    String ComputeMessage();
+
+    // Do delete
+    void DeleteAllFiles();
+
+    /*
+     * ISubMenuSelected implementation
+     */
+
+    void SubMenuSelected(const ItemSubMenu& item, int id) override;
+
+    /*
+     * IActionTriggered implementation
+     */
+
+    void MenuActionTriggered(ItemAction& item, int id) override;
+};
+
+
+

@@ -1,0 +1,5 @@
+config BR2_PACKAGE_VVVVVV
+	bool "vvvvvv"
+	help
+	  The source code to VVVVVV!
+	  https://github.com/TerryCavanagh/VVVVVV

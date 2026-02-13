@@ -1,0 +1,16 @@
+<?xml version="1.0"?>
+<gameList>
+	<game source="Recalbox" timestamp="1707688356">
+		<path>splore.p8</path>
+		<name>splore</name>
+		<genre>Store</genre>
+		<publisher>lexaloffle</publisher>
+		<developer>lexaloffle</developer>
+		<releasedate>20140101T000000</releasedate>
+		<image>media/images/splore.p8.png</image>
+		<desc>SPLORE is a built-in utility for browsing and organising both local and bbs (online) cartridges.</desc>
+		<ratio>auto</ratio>
+		<core>pico8</core>
+		<emulator>pico8</emulator>
+	</game>
+</gameList>

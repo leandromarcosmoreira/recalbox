@@ -1,0 +1,28 @@
+From cad0ca41b6b617791057c4e7be6dd8f97eb3fc05 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Aug 2023 08:11:21 +0000
+Subject: [PATCH 148/176] v4l2_req_media: Fix dmabuf fd leak in MMAP mode
+
+---
+ libavcodec/v4l2_req_media.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_req_media.c b/libavcodec/v4l2_req_media.c
+index 1a9944774a..0394bb2b23 100644
+--- a/libavcodec/v4l2_req_media.c
++++ b/libavcodec/v4l2_req_media.c
+@@ -1205,8 +1205,10 @@ qe_import_from_buf(struct mediabufs_ctl *const mbc, struct qent_base * const be,
+                     .plane = i,
+                     .flags = O_RDWR, // *** Arguably O_RDONLY would be fine
+                 };
+-                if (ioctl(mbc->vfd, VIDIOC_EXPBUF, &xbuf) == 0)
++                if (ioctl(mbc->vfd, VIDIOC_EXPBUF, &xbuf) == 0) {
+                     be->dh[i] = dmabuf_import(xbuf.fd, planes[i].length);
++                    close(xbuf.fd); // dmabuf_import dups the fd so close this one
++                }
+             }
+             else {
+                 be->dh[i] = dmabuf_import_mmap(
+-- 
+2.46.0
+

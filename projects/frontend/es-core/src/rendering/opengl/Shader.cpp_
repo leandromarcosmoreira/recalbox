@@ -1,0 +1,171 @@
+//
+// Created by bkg2k on 02/08/2021.
+//
+// As part of the RECALBOX Project
+// http://www.recalbox.com
+//
+
+#include "Shader.h"
+#include "utils/Log.h"
+
+Shader::Shader(const String& shader)
+  : mVertexShader(0)
+  , mFragmentShader(0)
+  , mProgramObject(0)
+  , mPositionHandle(-1)
+  , mTextCoordHandle(-1)
+{
+  String vShaderStr = shader; vShaderStr.Replace("//${DEFINE}", "#define VERTEX");
+  String fShaderStr = shader; fShaderStr.Replace("//${DEFINE}", "#define FRAGMENT");
+
+  mVertexShader = LoadShader(vShaderStr, GL_VERTEX_SHADER);
+  mFragmentShader = LoadShader(fShaderStr, GL_FRAGMENT_SHADER);
+  if (mVertexShader != 0 && mFragmentShader != 0)
+  {
+    LOG(LogInfo) << "[Shader] Shader loaded.";
+    mProgramObject = Link(mVertexShader, mFragmentShader);
+  }
+}
+
+Shader::~Shader()
+{
+  if (mVertexShader != 0) glDeleteShader(mVertexShader);
+  if (mFragmentShader != 0) glDeleteShader(mFragmentShader);
+}
+
+GLuint Shader::LoadShader(const String& shaderContent, GLenum type)
+{
+  // Create the shader object
+  GLuint shader = glCreateShader(type);
+  if(shader == 0) return 0;
+
+  // Load the shader content
+  const char* content = shaderContent.data();
+  glShaderSource(shader, 1, &content, nullptr);
+
+  // Compile the shader
+  glCompileShader(shader);
+
+  // Check compilation status
+  GLint compiled = 0;
+  glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+  if (compiled == 0)
+  {
+    GLint infoLen = 0;
+    glGetShaderiv(shader, GL_INFO_LOG_LENGTH, &infoLen);
+    char* infoLog = (char*)malloc(sizeof(char) * infoLen);
+    glGetShaderInfoLog(shader, infoLen, nullptr, infoLog);
+    if(infoLen > 1) { LOG(LogError) << "[Shader] Error compiling shader! " << infoLog; }
+    free(infoLog);
+    glDeleteShader(shader);
+    return 0;
+  }
+
+  return shader;
+}
+
+GLuint Shader::Link(GLuint vertexShader, GLuint fragmentShader)
+{
+  // Create the program object
+  GLuint programObject = glCreateProgram();
+  if(programObject == 0) return 0;
+
+  // Attch both shaders
+  glAttachShader(programObject, vertexShader);
+  glAttachShader(programObject, fragmentShader);
+
+  // Link the program
+  glLinkProgram(programObject);
+
+  // Check the link status
+  GLint linked = 0;
+  glGetProgramiv(programObject, GL_LINK_STATUS, &linked);
+  if (linked == 0)
+  {
+    GLint infoLen = 0;
+    glGetProgramiv(programObject, GL_INFO_LOG_LENGTH, &infoLen);
+    char* infoLog = (char*)malloc(sizeof(char) * infoLen);
+    glGetProgramInfoLog(programObject, infoLen, nullptr, infoLog);
+    if (infoLen > 1) { LOG(LogError) << "[Shader] Error linking program: " << infoLog; }
+    free(infoLog);
+    glDeleteProgram(programObject);
+    return 0;
+  }
+
+  return programObject;
+}
+
+void Shader::Activate(Texture& input) const
+{
+  // Use the program object
+  glUseProgram(mProgramObject);
+
+  // Position attribute
+  glBindAttribLocation(mProgramObject, 0, "aPosition");
+
+  GLint loc = glGetUniformLocation(mProgramObject, "vTexture");
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, input.Identifier());
+  glUniform1i(loc, 0);
+}
+
+void Shader::Activate() const
+{
+  // Use the program object
+  glUseProgram(mProgramObject);
+}
+
+void Shader::Deactivate() const
+{
+  // Deactivate texture attributes
+  if (mPositionHandle >= 0) glDisableVertexAttribArray(mPositionHandle);
+  if (mTextCoordHandle >= 0) glDisableVertexAttribArray(mTextCoordHandle);
+
+  // Use the program object
+  glUseProgram(0);
+}
+
+void Shader::SetInt(const char* name, int value) const
+{
+  int location = glGetUniformLocation(mProgramObject, name);
+  if (location >= 0) glUniform1i(location, value);
+  else LOG(LogError) << "[Shader] Unknown uniform name " << name;
+  ///Renderer::EmptyErrors();
+}
+
+void Shader::SetFloat(const char* name, float value) const
+{
+  int location = glGetUniformLocation(mProgramObject, name);
+  if (location >= 0) glUniform1f(location, value);
+  else LOG(LogError) << "[Shader] Unknown uniform name " << name;
+  //Renderer::EmptyErrors();
+}
+
+void Shader::SetTexture(const char* varPosition, const char* varTexCoord, const char* varTexture, GLuint textureID, Vertex* vertexes)
+{
+  // Texture binding
+  GLint loc = glGetUniformLocation(mProgramObject, varTexture);
+  glUniform1i(loc, 0);
+  glActiveTexture(GL_TEXTURE0);
+  glBindTexture(GL_TEXTURE_2D, textureID);
+
+  // Bind texture position
+  mPositionHandle = glGetAttribLocation(mProgramObject, varPosition);
+  glVertexAttribPointer(mPositionHandle, 2, GL_FLOAT, GL_FALSE, sizeof(Vertex), &vertexes[0].Target);
+  glEnableVertexAttribArray(mPositionHandle);
+  // Bind texture coordinates
+  mTextCoordHandle = glGetAttribLocation(mProgramObject, varTexCoord);
+  glVertexAttribPointer(mTextCoordHandle, 2, GL_FLOAT, GL_TRUE, sizeof(Vertex), &vertexes[0].Source);
+  glEnableVertexAttribArray(mTextCoordHandle);
+}
+
+void Shader::SetVec2(const char* name, float x, float y) const
+{
+  int location = glGetUniformLocation(mProgramObject, name);
+  if (location >= 0) glUniform2f(location, x, y);
+  else LOG(LogError) << "[Shader] Unknown uniform name " << name;
+  ///Renderer::EmptyErrors();
+}
+
+
+

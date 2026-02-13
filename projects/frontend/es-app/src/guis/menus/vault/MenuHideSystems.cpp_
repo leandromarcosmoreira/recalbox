@@ -1,0 +1,31 @@
+//
+// Created by bkg2k on 15/08/24.
+//
+
+#include "MenuHideSystems.h"
+#include "systems/SystemManager.h"
+
+MenuHideSystems::MenuHideSystems(WindowManager& window, SystemManager& systemManager)
+  : Menu(window, InheritableContext(), _("VIRTUAL SYSTEMS PER GENRE"))
+  , mSystemManager(systemManager)
+{
+}
+
+void MenuHideSystems::BuildMenuItems()
+{
+  // All games
+  int i = 0;
+  for(const SystemData* system : mSystemManager.AllSystems())
+    if (!system->IsPorts() && !system->IsVirtual())
+    {
+      mGenres[i] = system;
+      AddSwitch((_F(_("Hide {0}")) / system->FullName())(), RecalboxConf::Instance().GetSystemIgnore(*system), i++, this);
+    }
+}
+
+void MenuHideSystems::MenuSwitchChanged(const ItemSwitch& item, bool& status, int id)
+{
+  (void)item;
+  const SystemData* system = mGenres[id];
+  RecalboxConf::Instance().SetSystemIgnore(*system, status).Save();
+}

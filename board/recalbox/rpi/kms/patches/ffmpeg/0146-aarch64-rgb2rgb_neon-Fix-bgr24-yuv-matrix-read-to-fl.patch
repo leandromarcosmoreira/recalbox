@@ -1,0 +1,39 @@
+From 8938a3114af61fb951d1718a6f9fce897dbbaa51 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Aug 2023 06:34:47 +0000
+Subject: [PATCH 146/176] aarch64/rgb2rgb_neon: Fix bgr24->yuv matrix read to
+ flip correct way
+
+---
+ libswscale/aarch64/rgb2rgb_neon.S | 15 ++++++---------
+ 1 file changed, 6 insertions(+), 9 deletions(-)
+
+diff --git a/libswscale/aarch64/rgb2rgb_neon.S b/libswscale/aarch64/rgb2rgb_neon.S
+index 476ca723a0..077d1dd593 100644
+--- a/libswscale/aarch64/rgb2rgb_neon.S
++++ b/libswscale/aarch64/rgb2rgb_neon.S
+@@ -92,15 +92,12 @@ endfunc
+ 
+ function ff_rgb24toyv12_aarch64, export=1
+         ldr             x15, [sp, #8]
+-        ld1             {v3.s}[2], [x15], #4
+-        ld1             {v3.s}[1], [x15], #4
+-        ld1             {v3.s}[0], [x15], #4
+-        ld1             {v4.s}[2], [x15], #4
+-        ld1             {v4.s}[1], [x15], #4
+-        ld1             {v4.s}[0], [x15], #4
+-        ld1             {v5.s}[2], [x15], #4
+-        ld1             {v5.s}[1], [x15], #4
+-        ld1             {v5.s}[0], [x15]
++        ld3             {v3.s, v4.s, v5.s}[0], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[1], [x15], #12
++        ld3             {v3.s, v4.s, v5.s}[2], [x15]
++        mov             v6.16b, v3.16b
++        mov             v3.16b, v5.16b
++        mov             v5.16b, v6.16b
+         b               99f
+ endfunc
+ 
+-- 
+2.46.0
+

@@ -1,0 +1,66 @@
+From c998fdbc215ceb5c9df616e4dfed7d5126f0ea95 Mon Sep 17 00:00:00 2001
+From: digitalLumberjack <digitallumberjack@gmail.com>
+Date: Sat, 24 Jan 2026 10:50:21 +0100
+Subject: [PATCH 28/28] crt: translation for crt calibration options
+
+---
+ intl/msg_hash_en.h | 2 +-
+ intl/msg_hash_fr.h | 8 ++++++--
+ intl/msg_hash_us.h | 2 +-
+ 3 files changed, 8 insertions(+), 4 deletions(-)
+
+diff --git a/intl/msg_hash_en.h b/intl/msg_hash_en.h
+index 4358375552..24ea977aef 100644
+--- a/intl/msg_hash_en.h
++++ b/intl/msg_hash_en.h
+@@ -239,7 +239,7 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
+-   "Vertical Centring"
++   "Vertical Centering"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_HIRES_MENU,
+diff --git a/intl/msg_hash_fr.h b/intl/msg_hash_fr.h
+index faaabb503c..e833b588b7 100644
+--- a/intl/msg_hash_fr.h
++++ b/intl/msg_hash_fr.h
+@@ -2223,7 +2223,7 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_X_AXIS_CENTERING,
+-   "Centrage sur l'axe X "
++   "Centrage horizontal"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_X_AXIS_CENTERING,
+@@ -2231,7 +2231,11 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_PORCH_ADJUST,
+-   "Ajustement de l'égalisation du balayage"
++   "Largeur de l'image"
++   )
++MSG_HASH(
++   MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
++   "Centrage vertical"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_PORCH_ADJUST,
+diff --git a/intl/msg_hash_us.h b/intl/msg_hash_us.h
+index c0fc79bdc4..e242d7966d 100644
+--- a/intl/msg_hash_us.h
++++ b/intl/msg_hash_us.h
+@@ -2322,7 +2322,7 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
+-   "Vertical Centring"
++   "Vertical Centering"
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_HIRES_MENU,
+-- 
+2.51.0
+

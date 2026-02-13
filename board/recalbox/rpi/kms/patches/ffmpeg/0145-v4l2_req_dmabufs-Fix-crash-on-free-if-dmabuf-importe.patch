@@ -1,0 +1,28 @@
+From d747101c1f67eae7663141108f8217222c34dede Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 10 Aug 2023 06:26:35 +0000
+Subject: [PATCH 145/176] v4l2_req_dmabufs: Fix crash on free if dmabuf
+ imported
+
+Thanks to Ratchanan Srirattanamet for finding this
+---
+ libavcodec/v4l2_req_dmabufs.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index acc0366e76..017c3892a5 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -232,7 +232,8 @@ void dmabuf_free(struct dmabuf_h * dh)
+     request_log("%s: Free: %zd, total=%zd, bufs=%d\n", __func__, dh->size, total_size, total_bufs);
+ #endif
+ 
+-    dh->fns->buf_free(dh);
++    if (dh->fns != NULL && dh->fns->buf_free)
++        dh->fns->buf_free(dh);
+ 
+     if (dh->mapptr != MAP_FAILED && dh->mapptr != NULL)
+         munmap(dh->mapptr, dh->size);
+-- 
+2.46.0
+

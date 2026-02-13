@@ -1,0 +1,91 @@
+From c71aace38a543accf5eb9387db737ff54316bac3 Mon Sep 17 00:00:00 2001
+From: digitalLumberjack <digitallumberjack@gmail.com>
+Date: Fri, 21 Jun 2024 15:12:30 +0200
+Subject: [PATCH 13/28] add option to avoid interlaced modes on retroarch
+ switchres
+
+---
+ configuration.c        | 1 +
+ configuration.h        | 1 +
+ gfx/video_crt_switch.c | 4 ++++
+ gfx/video_driver.c     | 5 ++++-
+ gfx/video_driver.h     | 1 +
+ 5 files changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/configuration.c b/configuration.c
+index 9bfb796256..2792482425 100644
+--- a/configuration.c
++++ b/configuration.c
+@@ -2467,6 +2467,7 @@ static struct config_uint_setting *populate_settings_uint(
+ 
+    SETTING_UINT("crt_switch_resolution",         &settings->uints.crt_switch_resolution, true, DEFAULT_CRT_SWITCH_RESOLUTION, false);
+    SETTING_UINT("crt_switch_resolution_super",   &settings->uints.crt_switch_resolution_super, true, DEFAULT_CRT_SWITCH_RESOLUTION_SUPER, false);
++   SETTING_UINT("crt_switch_resolution_no_interlaced",   &settings->uints.crt_switch_resolution_no_interlaced, true, 0, false);
+    SETTING_UINT("custom_viewport_width",         &settings->video_vp_custom.width, false, 0 /* TODO */, false);
+    SETTING_UINT("custom_viewport_height",        &settings->video_vp_custom.height, false, 0 /* TODO */, false);
+    SETTING_UINT("custom_viewport_x",             (unsigned*)&settings->video_vp_custom.x, false, 0 /* TODO */, false);
+diff --git a/configuration.h b/configuration.h
+index 112dcc1039..5d26768809 100644
+--- a/configuration.h
++++ b/configuration.h
+@@ -238,6 +238,7 @@ typedef struct settings
+       unsigned video_window_opacity;
+       unsigned crt_switch_resolution;
+       unsigned crt_switch_resolution_super;
++      unsigned crt_switch_resolution_no_interlaced;
+       unsigned screen_brightness;
+       unsigned video_monitor_index;
+       unsigned video_fullscreen_x;
+diff --git a/gfx/video_crt_switch.c b/gfx/video_crt_switch.c
+index c1f72f70b6..0797e4cd05 100644
+--- a/gfx/video_crt_switch.c
++++ b/gfx/video_crt_switch.c
+@@ -303,6 +303,10 @@ static void switch_res_crt(
+       char current_core_name[NAME_MAX_LENGTH];
+       char current_content_dir[DIR_MAX_LENGTH];
+       double rr              = p_switch->ra_core_hz;
++      char * allow_interlace  = p_switch->interlace & 0x2 ? "0" : "1";
++      p_switch->interlace &= 0x1;
++      sr_set_option("interlace", allow_interlace);
++      sr_set_option("doublescan", "0");
+       const char *_core_name = (const char*)runloop_state_get_ptr()->system.info.library_name;
+       /* Check for core and content changes in case we need
+          to make any adjustments */
+diff --git a/gfx/video_driver.c b/gfx/video_driver.c
+index 436b018526..49855a39d0 100644
+--- a/gfx/video_driver.c
++++ b/gfx/video_driver.c
+@@ -2840,6 +2840,7 @@ void video_driver_build_info(video_frame_info_t *video_info)
+    video_info->refresh_rate                = settings->floats.video_refresh_rate;
+    video_info->crt_switch_resolution       = settings->uints.crt_switch_resolution;
+    video_info->crt_switch_resolution_super = settings->uints.crt_switch_resolution_super;
++   video_info->crt_switch_resolution_no_interlaced = settings->uints.crt_switch_resolution_no_interlaced;
+    video_info->crt_switch_center_adjust    = settings->ints.crt_switch_center_adjust;
+    video_info->crt_switch_porch_adjust     = settings->ints.crt_switch_porch_adjust;
+    video_info->crt_switch_hires_menu       = settings->bools.crt_switch_hires_menu;
+@@ -4300,7 +4301,9 @@ void video_driver_frame(const void *data, unsigned width,
+          default:
+             break;
+       }
+-
++      // Set flag on interlace to avoid method modification
++      if(video_info.crt_switch_resolution_no_interlaced)
++        video_st->crt_switch_st.interlace |= 0x2;
+       crt_switch_res_core(
+             &video_st->crt_switch_st,
+             native_width, width,
+diff --git a/gfx/video_driver.h b/gfx/video_driver.h
+index a5cb80d986..7731869cf5 100644
+--- a/gfx/video_driver.h
++++ b/gfx/video_driver.h
+@@ -403,6 +403,7 @@ typedef struct video_frame_info
+    unsigned monitor_index;
+    unsigned crt_switch_resolution;
+    unsigned crt_switch_resolution_super;
++   unsigned crt_switch_resolution_no_interlaced;
+    unsigned width;
+    unsigned height;
+    unsigned scale_width;
+-- 
+2.51.0
+

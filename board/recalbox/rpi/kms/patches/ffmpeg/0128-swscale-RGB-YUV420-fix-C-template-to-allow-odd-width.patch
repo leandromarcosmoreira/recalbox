@@ -1,0 +1,139 @@
+From b33da8d8e65c892cc6e620d046d85b42fbea524a Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 20 Apr 2023 13:40:36 +0000
+Subject: [PATCH 128/176] swscale: RGB->YUV420 fix C template to allow odd
+ widths
+
+(cherry picked from commit 08b2023e7b5292df0adc6593e4d20087f9cef5c8)
+---
+ libswscale/rgb2rgb_template.c | 44 +++++++++++++++++++++++++++++++++++
+ libswscale/swscale_unscaled.c | 11 ++++-----
+ 2 files changed, 49 insertions(+), 6 deletions(-)
+
+diff --git a/libswscale/rgb2rgb_template.c b/libswscale/rgb2rgb_template.c
+index 703de90690..e711589e1e 100644
+--- a/libswscale/rgb2rgb_template.c
++++ b/libswscale/rgb2rgb_template.c
+@@ -679,6 +679,19 @@ static void rgb24toyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+             Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+             ydst[2 * i + 1] = Y;
+         }
++        if ((width & 1) != 0) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++        }
+         ydst += lumStride;
+         src  += srcStride;
+ 
+@@ -701,6 +714,15 @@ static void rgb24toyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+             Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+             ydst[2 * i + 1] = Y;
+         }
++        if ((width & 1) != 0) {
++            unsigned int b = src[6 * i + 0];
++            unsigned int g = src[6 * i + 1];
++            unsigned int r = src[6 * i + 2];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++        }
+         udst += chromStride;
+         vdst += chromStride;
+         ydst += lumStride;
+@@ -767,6 +789,19 @@ static void rgbxtoyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+             Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+             ydst[2 * i + 1] = Y;
+         }
++        if ((width & 1) != 0) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++        }
+         ydst += lumStride;
+         src  += srcStride;
+ 
+@@ -789,6 +824,15 @@ static void rgbxtoyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+             Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
+             ydst[2 * i + 1] = Y;
+         }
++        if ((width & 1) != 0) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++        }
+         udst += chromStride;
+         vdst += chromStride;
+         ydst += lumStride;
+diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
+index 4e63cf9414..d7d87b08cf 100644
+--- a/libswscale/swscale_unscaled.c
++++ b/libswscale/swscale_unscaled.c
+@@ -2062,7 +2062,6 @@ void ff_get_unscaled_swscale(SwsContext *c)
+     const enum AVPixelFormat dstFormat = c->dstFormat;
+     const int flags = c->flags;
+     const int dstH = c->dstH;
+-    const int dstW = c->dstW;
+     int needsDither;
+ 
+     needsDither = isAnyRGB(dstFormat) &&
+@@ -2120,12 +2119,12 @@ void ff_get_unscaled_swscale(SwsContext *c)
+     /* bgr24toYV12 */
+     if (srcFormat == AV_PIX_FMT_BGR24 &&
+         (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = bgr24ToYv12Wrapper;
+     /* rgb24toYV12 */
+     if (srcFormat == AV_PIX_FMT_RGB24 &&
+         (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = rgb24ToYv12Wrapper;
+ 
+     /* bgrxtoYV12 */
+@@ -2136,17 +2135,17 @@ void ff_get_unscaled_swscale(SwsContext *c)
+     /* rgbx24toYV12 */
+     if (((srcFormat == AV_PIX_FMT_RGBA && dstFormat == AV_PIX_FMT_YUV420P) ||
+          (srcFormat == AV_PIX_FMT_RGB0 && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = rgbxToYv12Wrapper;
+     /* xbgrtoYV12 */
+     if (((srcFormat == AV_PIX_FMT_ABGR && dstFormat == AV_PIX_FMT_YUV420P) ||
+          (srcFormat == AV_PIX_FMT_0BGR && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = xbgrToYv12Wrapper;
+     /* xrgb24toYV12 */
+     if (((srcFormat == AV_PIX_FMT_ARGB && dstFormat == AV_PIX_FMT_YUV420P) ||
+          (srcFormat == AV_PIX_FMT_0RGB && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
+-        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        !(flags & SWS_ACCURATE_RND))
+         c->convert_unscaled = xrgbToYv12Wrapper;
+ 
+     /* RGB/BGR -> RGB/BGR (no dither needed forms) */
+-- 
+2.46.0
+

@@ -1,0 +1,179 @@
+//
+// Created by bkg2k on 26/10/2020.
+//
+#pragma once
+
+#include "guis/menus/base/Menu.h"
+#include "guis/GuiWaitLongExecution.h"
+#include "guis/IVirtualKeyboardInterface.h"
+
+enum class NetworkOperation
+{
+  StartWIFI,
+  StopWIFI,
+  NewConnection,
+  ScanSSID,
+  WPS,
+};
+
+class MenuNetwork : public Menu
+                     , private ILongExecution<NetworkOperation, bool>
+                     , private IGuiArcadeVirtualKeyboardInterface
+                     , private ISingleSelectorChanged<String>
+                     , private IEditableChanged
+                     , private ISwitchChanged
+                     , private IActionTriggered
+                     , private Thread
+                     , private ISyncMessageReceiver<bool>
+{
+  public:
+    /*!
+     * @brief Default constructor
+     * @param window Global window
+     */
+    explicit MenuNetwork(WindowManager& window);
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+    //! Default dstructor
+    ~MenuNetwork() override;
+
+  private:
+    enum class Components
+    {
+      WifiOnOff,
+      WifiSSID,
+      WifiKey,
+      Hostname,
+      WPS,
+    };
+
+    //! Sender
+    SyncMessageSender<bool> mSender;
+    //! SSID list
+    ItemSelector<String>* mSSIDList;
+    //! Hostname
+    ItemEditable* mHostname;
+    //! WIFI On/Off
+    ItemSwitch* mWifiOnOff;
+    //! WIFI Key
+    ItemEditable* mWifiKey;
+    //! Status
+    ItemText* mStatus;
+    //! IP
+    ItemText* mIP;
+
+    //! Edited text Backup
+    String mBackupedText;
+
+    //! Captured WPS SSID
+    String mWpsSSID;
+    //! Captured WPS PSK
+    String mWpsPSK;
+
+    //! Last SSID Scan
+    String::List mScannedSSIDList;
+
+    //! Anti-renentry flag
+    bool mFillingList;
+
+    //! Need backup into /boot/recalbox-backup.conf
+    bool mNeedBackup;
+
+    //! Last ping
+    bool mLastPing;
+
+    /*!
+     * @brief Try WPS connection
+     */
+    void TryWPS();
+
+    /*!
+     * @brief Connect using WPS
+     * @param from Current Operation
+     * @return True if the WPS connection is successful
+     */
+    bool ConnectWps(GuiWaitLongExecution<NetworkOperation, bool>& from);
+
+    /*!
+     * @brief Set WIFI ssid
+     * @param ssid new wifi ssid
+     * @param save True to save configuration immediately
+     */
+    static void SetWifiSSID(const String& ssid, bool save)
+    {
+      RecalboxConf::Instance().SetWifiSSID(ssid);
+      if (save) RecalboxConf::Instance().Save();
+    }
+
+    /*
+     * ILongExecution implementation
+     */
+
+    /*!
+     * @brief Execture network operation
+     * @param parameter Network operation required to execute
+     * @return True if the operation was successful
+     */
+    bool Execute(GuiWaitLongExecution<NetworkOperation, bool>& from, const NetworkOperation& parameter) final;
+
+    /*!
+     * @brief Receive the status of network operations
+     * @param parameter original input parameter
+     * @param result Result state
+     */
+    void Completed(const NetworkOperation& parameter, const bool& result) final;
+
+    /*
+     * IOptionListComponent implementation
+     */
+
+    void MenuSingleChanged(ItemSelectorBase<String>& item, int id, int index, const String& value) override;
+
+    /*
+     * IEditableComponent implementation
+     */
+
+    void MenuEditableChanged(ItemEditable& item, int id, const String& text) override;
+
+    /*
+     * ISwitchChanged implementation
+     */
+
+    void MenuSwitchChanged(const ItemSwitch& item, bool& status, int id) override;
+
+    /*
+     * IGuiArcadeVirtualKeyboardInterface implementation
+     */
+
+    void ArcadeVirtualKeyboardTextChange(GuiArcadeVirtualKeyboard&, const String&) override {}
+
+    void ArcadeVirtualKeyboardValidated(GuiArcadeVirtualKeyboard& vk, const String& text) override;
+
+    void ArcadeVirtualKeyboardCanceled(GuiArcadeVirtualKeyboard&) override {}
+
+    /*
+     * IActionTriggered implementation
+     */
+
+    void MenuActionTriggered(ItemAction& item, int id) final;
+
+    /*
+     * Thread
+     */
+
+    //! Pïng thread
+    void Run() final;
+
+    /*
+     * Synchronous event
+     */
+
+    /*!
+     * @brief Receive message from the command thread
+     * @param game Game data
+     */
+    void ReceiveSyncMessage(bool connected) override;
+};
+

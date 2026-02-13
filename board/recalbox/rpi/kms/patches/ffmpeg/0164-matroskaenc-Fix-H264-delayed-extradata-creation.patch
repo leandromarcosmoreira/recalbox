@@ -1,0 +1,25 @@
+From ea8519a9a38e99cc37348b6a1fbe154426ced274 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 1 Feb 2024 18:11:06 +0000
+Subject: [PATCH 164/176] matroskaenc: Fix H264 delayed extradata creation
+
+---
+ libavformat/matroskaenc.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavformat/matroskaenc.c b/libavformat/matroskaenc.c
+index 3fb246f4ac..e6d6f489e3 100644
+--- a/libavformat/matroskaenc.c
++++ b/libavformat/matroskaenc.c
+@@ -1137,7 +1137,7 @@ static int mkv_assemble_native_codecprivate(AVFormatContext *s, AVIOContext *dyn
+     case AV_CODEC_ID_WAVPACK:
+         return put_wv_codecpriv(dyn_cp, extradata, extradata_size);
+     case AV_CODEC_ID_H264:
+-        if (par->extradata_size)
++        if (extradata_size)
+             return ff_isom_write_avcc(dyn_cp, extradata,
+                                       extradata_size);
+         else
+-- 
+2.46.0
+

@@ -1,0 +1,132 @@
+//
+// Created by bkg2k on 30/05/24.
+//
+
+#include "MenuUserScripts.h"
+#include "games/GameFilesUtils.h"
+#include "usernotifications/NotificationManager.h"
+
+MenuUserScripts::MenuUserScripts(WindowManager& window)
+  : Menu(window, InheritableContext(), _("USER SCRIPTS"))
+  , mSender(*this)
+  , mWaiter(nullptr)
+  , mScriptIndexToRun(0)
+{
+}
+
+void MenuUserScripts::BuildMenuItems()
+{
+  ScriptDescriptorList scripts = NotificationManager::Instance().GetManualScriptList();
+  std::sort(scripts.begin(), scripts.end(), [](const ScriptDescriptor& a, ScriptDescriptor& b){ return a.mPath.ToString() < b.mPath.ToString(); });
+  for(const ScriptDescriptor& script : scripts)
+    AddAction(ExtractScriptName(script.mPath, script.mAttribute), _("RUN"), script.mIndex, true, this, String::Empty);
+}
+
+String MenuUserScripts::ExtractScriptName(const Path& script, ScriptAttributes attributes)
+{
+  String name = script.FilenameWithoutDecorations();
+  if ((attributes & (ScriptAttributes::Synced | ScriptAttributes::ReportProgress)) != 0) name.Append(' ');
+  if (hasFlag(attributes, ScriptAttributes::Synced)) name.AppendUTF8(0xF1AF);
+  if (hasFlag(attributes, ScriptAttributes::ReportProgress)) name.AppendUTF8(0xF1AE);
+  return name;
+}
+
+void MenuUserScripts::MenuActionTriggered(ItemAction& item, int id)
+{
+  (void)item;
+  mScriptIndexToRun = id;
+  Thread::Start("Script");
+}
+
+void MenuUserScripts::ScriptStarts(const Path& script, ScriptAttributes attributes)
+{
+  Mutex::AutoLock locker(mGuardian);
+  mPendingData.push_back(EventData(script, attributes));
+  mSender.Send();
+}
+
+void MenuUserScripts::ScriptOutputLine(const Path& script, ScriptAttributes attributes, const String& line)
+{
+  Mutex::AutoLock locker(mGuardian);
+  mPendingData.push_back(EventData(script, attributes, line));
+  mSender.Send();
+}
+
+void MenuUserScripts::ScriptCompleted(const Path& script, ScriptAttributes attributes, const String& output, bool error, const String& errors)
+{
+  Mutex::AutoLock locker(mGuardian);
+  mPendingData.push_back(EventData(script, attributes, output, error, errors));
+  mSender.Send();
+}
+
+void MenuUserScripts::Run()
+{
+  NotificationManager::Instance().RunManualScriptAt(mScriptIndexToRun, this);
+}
+
+void MenuUserScripts::ReceiveSyncMessage()
+{
+  for(;;)
+  {
+    mGuardian.Lock();
+    if (mPendingData.empty()) { mGuardian.UnLock(); break; }
+    EventData data = mPendingData.front();
+    mPendingData.erase(mPendingData.begin());
+    mGuardian.UnLock();
+
+    switch (data.mType)
+    {
+      case ScriptEvent::Start:
+      {
+        if ((data.mAttributes & ScriptAttributes::Synced) == 0)
+          mWindow.displayMessage((_F(_("Script {0} started successfully!")) / ExtractScriptName(data.mPath, data.mAttributes)).ToString());
+        else
+        {
+          mWaiter = new GuiASyncWaiter(mWindow, (_F(_("Running {0}...")) / ExtractScriptName(data.mPath, data.mAttributes)).ToString());
+          mWindow.pushGui(mWaiter);
+        }
+        break;
+      }
+      case ScriptEvent::Line:
+      {
+        if (mWaiter != nullptr)
+        {
+          int percent = 0;
+          if (data.mLastLine.StartsWith('%') && data.mLastLine.TryAsInt(1, 0, percent))
+          {
+            mWaiter->SetProgress(percent);
+            //{ LOG(LogDebug) << "Percent: " << percent; }
+          }
+          else
+          {
+            mWaiter->SetProgressText(data.mLastLine);
+            //{ LOG(LogDebug) << "Line: " << data.mLastLine; }
+          }
+        }
+        break;
+      }
+      case ScriptEvent::Stop:
+      {
+        if (mWaiter != nullptr)
+          mWaiter->Close();
+
+        if (hasFlag(data.mAttributes, ScriptAttributes::Synced))
+        {
+          String title = _("Script execution complete");
+          if (data.mError)
+          {
+            String text = (_F(_("Script {0} has failed!")) / ExtractScriptName(data.mPath, data.mAttributes)).ToString();
+            if (!data.mStdErr.empty())
+              text.Append('\n').Append(_("With the following Error output:")).Append('\n').Append('\n').Append(data.mStdErr);
+            mWindow.displayScrollMessage(title, text);
+          }
+          String text = (_F(_("Script {0} executed successfully!")) / ExtractScriptName(data.mPath, data.mAttributes)).ToString();
+          if (!hasFlag(data.mAttributes, ScriptAttributes::ReportProgress) && !data.mStdOut.empty())
+            text.Append('\n').Append(_("With the following output:")).Append('\n').Append('\n').Append(data.mStdOut);
+          mWindow.displayScrollMessage(title, text);
+        }
+        break;
+      }
+    }
+  }
+}

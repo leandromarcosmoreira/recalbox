@@ -1,0 +1,61 @@
+From cac42475491c8f2833d967c28810b9f10275ab3e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 4 Jan 2024 15:52:24 +0000
+Subject: [PATCH 154/176] Fix conform - still appears to have race
+
+---
+ libavcodec/hevc_refs.c         | 5 +++--
+ libavcodec/v4l2_request_hevc.c | 9 +++------
+ 2 files changed, 6 insertions(+), 8 deletions(-)
+
+diff --git a/libavcodec/hevc_refs.c b/libavcodec/hevc_refs.c
+index 05ca5f3785..3aa785667e 100644
+--- a/libavcodec/hevc_refs.c
++++ b/libavcodec/hevc_refs.c
+@@ -306,10 +306,11 @@ static int init_slice_rpl(HEVCContext *s)
+     if (frame->rpl_tab) {
+         for (i = ctb_addr_ts; i < ctb_count; i++)
+             frame->rpl_tab[i] = frame->rpl + s->slice_idx;
+-
+-        frame->refPicList = (RefPicList *)frame->rpl_tab[ctb_addr_ts];
+     }
+ 
++//    frame->refPicList = (RefPicList *)frame->rpl_tab[ctb_addr_ts];
++    frame->refPicList = (RefPicList *)(frame->rpl + s->slice_idx);
++
+     return 0;
+ }
+ 
+diff --git a/libavcodec/v4l2_request_hevc.c b/libavcodec/v4l2_request_hevc.c
+index a01f28b21e..fbc7b9bfb4 100644
+--- a/libavcodec/v4l2_request_hevc.c
++++ b/libavcodec/v4l2_request_hevc.c
+@@ -180,7 +180,6 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+         return AVERROR_PATCHWELCOME;
+     }
+ 
+-
+     if ((ctx = av_mallocz(sizeof(*ctx))) == NULL) {
+         av_log(avctx, AV_LOG_ERROR, "Unable to allocate context");
+         return AVERROR(ENOMEM);
+@@ -367,14 +366,12 @@ v4l2_request_update_thread_context(AVCodecContext *dst, const AVCodecContext *sr
+ {
+     V4L2RequestPrivHEVC * const spriv = src->internal->hwaccel_priv_data;
+     V4L2RequestPrivHEVC * const dpriv = dst->internal->hwaccel_priv_data;
++    int rv;
+ 
+     av_log(dst, AV_LOG_DEBUG, "<<< %s (%s)\n", __func__, dpriv->cctx_buf ? "old" : "new");
+ 
+-    if (dpriv->cctx_buf)
+-        return 0;
+-
+-    if ((dpriv->cctx_buf = av_buffer_ref(spriv->cctx_buf)) == NULL)
+-        return AVERROR(ENOMEM);
++    if ((rv = av_buffer_replace(&dpriv->cctx_buf, spriv->cctx_buf)) != 0)
++        return rv;
+ 
+     dpriv->cctx = spriv->cctx;
+     return 0;
+-- 
+2.46.0
+

@@ -1,0 +1,84 @@
+name: Build Recalbox for Raspberry Pi 5
+
+on:
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+jobs:
+  build_rpi5:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    name: Build RPi5 (aarch64) Image
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v3
+        with:
+          # Required for the Docker build context and for the build script to run
+          submodules: 'recursive'
+
+      - name: Install GH CLI
+        uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
+        with:
+          gh-cli-version: 2.65.0
+
+      - name: Get current date and commit slug
+        id: version_vars
+        run: |
+          echo "date=$(date '+%Y/%m/%d')" >> $GITHUB_OUTPUT
+          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
+
+      - name: Build Recalbox Docker Image
+        run: |
+          docker build -t "recalbox-rpi5_64" .
+
+      - name: Compile Recalbox
+        run: |
+          set -euo pipefail
+          WORKDIR="$(pwd)"
+          OUTPUTDIR="${WORKDIR}/output"
+          mkdir -p "${OUTPUTDIR}"
+          
+          # Note: The original build script uses pre-existing cache directories
+          # (/recalbox-builds/dl and /recalbox-builds/ccaches) which are not available
+          # in standard GitHub runners. This build will be slower as it will
+          # download all dependencies every time.
+          # For faster builds, configure self-hosted runners with cached volumes
+          # or implement the actions/cache action for the 'buildroot/dl' directory.
+          
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "${WORKDIR}:/work" \
+            -v "${OUTPUTDIR}:/work/output" \
+            -e "ARCH=rpi5_64" \
+            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            "recalbox-rpi5_64" 2>&1 | tee build.log
+
+      - name: Prepare Artifacts
+        run: |
+          DIST_DIR="dist/rpi5_64"
+          mkdir -p "${DIST_DIR}"
+          cp output/images/recalbox/* "${DIST_DIR}/"
+          echo "Image files in ${DIST_DIR}:"
+          ls -lR "${DIST_DIR}"
+
+      - name: Upload Recalbox Image Artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: recalbox-rpi5_64-${{ steps.version_vars.outputs.slug }}
+          path: |
+            dist/rpi5_64/
+            build.log
+          retention-days: 7
+
+      - name: Publish GitHub Release with image
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -euo pipefail
+          TAG="rpi5_64-${{ steps.version_vars.outputs.slug }}-${{ github.run_number }}"
+          echo "Creating release ${TAG}..."
+          gh release create "${TAG}" dist/rpi5_64/* \
+            --title "Recalbox RPi5 image ${TAG}" \
+            --notes "Automated build for Raspberry Pi 5 (aarch64) from workflow run ${{ github.run_id }}."

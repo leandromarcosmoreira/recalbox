@@ -1,0 +1,32 @@
+From 91e6ae422c4aa74c9be63745915562b27e93f91d Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 30 Jun 2023 18:03:29 +0000
+Subject: [PATCH 134/176] sand_fns: Add missing uxtw for neon stride
+
+---
+ libavutil/aarch64/rpi_sand_neon.S | 2 ++
+ 1 file changed, 2 insertions(+)
+
+diff --git a/libavutil/aarch64/rpi_sand_neon.S b/libavutil/aarch64/rpi_sand_neon.S
+index 2f07d9674c..19411cf3f1 100644
+--- a/libavutil/aarch64/rpi_sand_neon.S
++++ b/libavutil/aarch64/rpi_sand_neon.S
+@@ -469,6 +469,7 @@ endfunc
+ function ff_rpi_sand30_lines_to_planar_y16, export=1
+                 lsl             w4,  w4,  #7
+                 sub             w4,  w4,  #64
++                uxtw            x4,  w4
+                 sub             w1,  w1,  w7, lsl #1
+                 uxtw            x6,  w6
+                 add             x8,  x2,  x6, lsl #7
+@@ -634,6 +635,7 @@ endfunc
+ function ff_rpi_sand30_lines_to_planar_y8, export=1
+                 lsl             w4,  w4,  #7
+                 sub             w4,  w4,  #64
++                uxtw            x4,  w4
+                 sub             w1,  w1,  w7
+                 uxtw            x6,  w6
+                 add             x8,  x2,  x6, lsl #7
+-- 
+2.46.0
+

@@ -1,0 +1,26 @@
+From faa8c6afcda58e1ad91eacc4f4ca6b4d467200b3 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 6 Mar 2024 11:55:22 +0000
+Subject: [PATCH 173/176] ffconf: Fix expected conformance s.t.
+ VPSSPSPPS_A_MainConcept_1 fails
+
+---
+ pi-util/conf_h265.2016.csv | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pi-util/conf_h265.2016.csv b/pi-util/conf_h265.2016.csv
+index 4efd5d1c67..177f1c8111 100644
+--- a/pi-util/conf_h265.2016.csv
++++ b/pi-util/conf_h265.2016.csv
+@@ -128,7 +128,7 @@
+ 3,HEVC_v1/TSUNEQBD_A_MAIN10_Technicolor_2,TSUNEQBD_A_MAIN10_Technicolor_2.bit,TSUNEQBD_A_MAIN10_Technicolor_2_yuv.md5, # unequal bit depth,10
+ 1,HEVC_v1/TUSIZE_A_Samsung_1,TUSIZE_A_Samsung_1.bin,TUSIZE_A_Samsung_1.md5,8
+ 1,HEVC_v1/VPSID_A_VIDYO_2,VPSID_A_VIDYO_2.bit,VPSID_A_VIDYO_2_yuv.md5,8
+-3,HEVC_v1/VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???,8
++2,HEVC_v1/VPSSPSPPS_A_MainConcept_1,VPSSPSPPS_A_MainConcept_1.bin,VPSSPSPPS_A_MainConcept_1_md5.txt, # ???,8
+ 1,HEVC_v1/WP_A_MAIN10_Toshiba_3,WP_A_MAIN10_Toshiba_3.bit,WP_A_MAIN10_Toshiba_3_yuv.md5,10
+ 1,HEVC_v1/WP_A_Toshiba_3,WP_A_Toshiba_3.bit,WP_A_Toshiba_3_yuv.md5,8
+ 1,HEVC_v1/WP_B_Toshiba_3,WP_B_Toshiba_3.bit,WP_B_Toshiba_3_yuv.md5,8
+-- 
+2.46.0
+

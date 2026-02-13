@@ -1,0 +1,31 @@
+From 8c84cae1b9fba6031284506089342e715e274bf9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 26 Sep 2022 18:20:50 +0100
+Subject: [PATCH 009/176] hwaccel: Add .abort_frame & use in hevcdec
+
+---
+ libavcodec/hevcdec.c | 7 ++++++-
+ 1 file changed, 6 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/hevcdec.c b/libavcodec/hevcdec.c
+index 340adf7cc1..3cfa39e03e 100644
+--- a/libavcodec/hevcdec.c
++++ b/libavcodec/hevcdec.c
+@@ -3366,8 +3366,13 @@ static int hevc_decode_frame(AVCodecContext *avctx, AVFrame *rframe,
+ 
+     s->ref = s->collocated_ref = NULL;
+     ret    = decode_nal_units(s, avpkt->data, avpkt->size);
+-    if (ret < 0)
++    if (ret < 0) {
++        // Ensure that hwaccel knows this frame is over
++        if (s->avctx->hwaccel && s->avctx->hwaccel->abort_frame)
++            s->avctx->hwaccel->abort_frame(s->avctx);
++
+         return ret;
++    }
+ 
+     if (avctx->hwaccel) {
+         if (s->ref && (ret = FF_HW_SIMPLE_CALL(avctx, end_frame)) < 0) {
+-- 
+2.46.0
+

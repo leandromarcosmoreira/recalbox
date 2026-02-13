@@ -1,0 +1,1 @@
+../../moonlight-qt/scripts/generic.inc.sh

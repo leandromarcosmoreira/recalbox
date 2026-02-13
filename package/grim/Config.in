@@ -1,0 +1,8 @@
+config BR2_PACKAGE_GRIM
+	bool "grim"
+	select BR2_PACKAGE_WAYLAND
+	select BR2_PACKAGE_LIBPNG
+	help
+	  Grab images from a Wayland compositor
+
+	  https://gitlab.freedesktop.org/emersion/grim

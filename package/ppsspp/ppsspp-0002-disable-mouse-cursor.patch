@@ -1,0 +1,14 @@
+diff --git a/SDL/SDLMain.cpp b/SDL/SDLMain.cpp
+index 559a3ff61b..8f6c3269b2 100644
+--- a/SDL/SDLMain.cpp
++++ b/SDL/SDLMain.cpp
+@@ -1398,9 +1398,7 @@ int main(int argc, char *argv[]) {
+ 		printf("Init from thread error: '%s'\n", error_message.c_str());
+ 	}
+ 
+-#ifdef MOBILE_DEVICE
+ 	SDL_ShowCursor(SDL_DISABLE);
+-#endif
+ 
+ 	// Ensure that the swap interval is set after context creation (needed for kmsdrm)
+ 	SDL_GL_SetSwapInterval(1);

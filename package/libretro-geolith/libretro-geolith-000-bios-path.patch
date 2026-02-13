@@ -1,0 +1,13 @@
+diff --git a/libretro/libretro.c b/libretro/libretro.c
+index 39df697..445c147 100644
+--- a/libretro/libretro.c
++++ b/libretro/libretro.c
+@@ -787,7 +787,7 @@ bool retro_load_game(const struct retro_game_info *info) {
+         return false;
+ 
+     char biospath[256];
+-    snprintf(biospath, sizeof(biospath), "%s%c%s", sysdir, pss,
++    snprintf(biospath, sizeof(biospath), "%s%c%s%c%s", sysdir, pss, "geolith", pss,
+         systype ? "neogeo.zip" : "aes.zip");
+ 
+     if (!geo_bios_load_file(biospath)) {

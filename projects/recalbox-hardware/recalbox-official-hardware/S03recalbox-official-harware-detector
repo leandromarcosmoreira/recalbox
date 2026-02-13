@@ -1,0 +1,140 @@
+#!/bin/bash
+
+if test "$1" != "start"; then
+  exit 0
+fi
+
+if [ -f "/sys/firmware/devicetree/base/panel_disp@1/compatible" ]; then
+  # if a 7" DSI panel is installed, skip RECALBOX hardware detection as
+  # it might corrupt DSI display
+  grep -q "raspberrypi,7inch-dsi" "/sys/firmware/devicetree/base/panel_disp@1/compatible" && exit 0
+fi
+
+# RGB DUAL              = AUTO
+# RGB DUAL2 PROTO 1     = I2C0 - 0x20 - 0x.1
+# RGB DUAL2 PROTO 2     = I2C1 - 0x20 - 0x.2
+# RGB DUAL2 PROTO 4     = I2C1 - 0x20 - 0x.3
+# RGB DUAL2 PROTO 5     = I2C1 - 0x20 - 0x.5
+# RGB JAMMA             = I2C0 - 0x26 - 0xc
+# RGB JAMMA 2 PROTO 1   = I2C1 - 0x26 - .1100...
+# RGB JAMMA 2 REVA/B    = I2C1 - 0x26 - 0001....
+# RGB DUAL2 REVC        = I2C1 - 0x21 - MCP 0x0001 on GPB
+# CARD READER REV1 = I2C1 - 0x22 - 0x1000001 on 0x01
+
+
+source /recalbox/scripts/recalbox-utils.sh
+board=""
+i2c="22"
+if [ "$(getArchName)" == "rpi5_64" ]; then
+  i2c="0"
+  board="-pi5"
+elif [ "$(getArchName)" == "rpi3" ]; then
+  i2c="11"
+fi
+mount -o remount,rw /
+mkdir -p /config
+mount -o remount,ro /
+mount -t configfs none /config
+# Detect recalbox official hardware (rgb jamma 1 & 2, all in one, rgb dual 2 etc)
+modprobe i2c-dev
+dtoverlay "i2ccustom${board}"
+
+# Card Reader
+stackable="recalbox-card-reader"
+CONFIG="/boot/recalbox-user-config.txt"
+if ! grep -q "^dtoverlay=${stackable}$" "${CONFIG}"; then
+  id="$(timeout 2 i2cget -y "1" 0x22 0x01 b)"
+  if [[ "$?" == "0" && "${id}" != "" ]]; then
+    id=${id:2}
+    id=${id^^}
+    binaryId=$(printf "\x${id}" | xxd -b | cut -d' ' -f2)
+    if [[ $binaryId =~ 00000001 || $binaryId =~ 00001001 || $binaryId =~ 00001111 || $binaryId =~ 00001110 ]]; then
+      mount -o remount,rw /boot
+      echo "S03recalbox-official-harware-detector ${stackable} detected !" >> /boot/hardware.log
+      echo -e "\ndtoverlay=${stackable}" >> "${CONFIG}"
+      mount -o remount,ro /boot
+      reboot
+    fi
+  fi
+fi
+
+id="$(i2cget -y "${i2c}" 0x26 0 b)"
+dtbo_extra=""
+if [[ "$?" == "0" && "${id}" != "" ]]; then
+  if [[ $id =~ "0xc" ]]; then adapter="recalboxrgbjamma"; dtbo_extra="${board}"; crt=true; fi
+  if [[ $id =~ "0x1" ]]; then adapter="recalboxallinone"; fi
+else
+  # RGB DUAL 2 - REV C
+  if i2cset -y "1" 0x21 0x0d 0x0f; then
+    id="$(timeout 2 i2cget -y "1" 0x21 0x13 b)"
+    if [[ "$?" == "0" && "${id}" != "" ]]; then
+      id=${id:2}
+      id=${id^^}
+      binaryId=$(printf "\x${id}" | xxd -b | cut -d' ' -f2)
+      if [[ $binaryId =~ ....0001 ]]; then
+        adapter="recalboxrgbdual2,revc"; crt=true;
+      fi
+    fi
+  else
+    # RGBDUAL2 proto 1
+    # TODO reorder by priority
+    id="$(timeout 2 i2cget -y "${i2c}" 0x20 1 b)"
+    if [[ "$?" == "0" && "${id}" != "" ]]; then
+      if [[ $id =~ 0x.1 ]]; then adapter="recalboxrgbdual2-proto1"; crt=true; fi
+    else
+      # RGBDUAL2 proto 2
+      id="$(timeout 2 i2cget -y "1" 0x20 1 b)"
+      if [[ "$?" == "0" && "${id}" != "" ]]; then
+        if [[ $id =~ 0x.2 ]]; then adapter="recalboxrgbdual2-proto2"; crt=true;
+        elif [[ $id =~ 0x.3 ]]; then adapter="recalboxrgbdual2,proto4"; crt=true;
+        elif [[ $id =~ 0x.5 ]]; then adapter="recalboxrgbdual2,proto5"; crt=true; fi
+      else
+        # RGBJAMMA2
+        id="$(timeout 2 i2cget -y "1" 0x26 0 b)"
+        if [[ "$?" == "0" && "${id}" != "" ]]; then
+          id=${id:2}
+          id=${id^^}
+          binaryId=$(printf "\x${id}" | xxd -b | cut -d' ' -f2)
+          if [[ $binaryId =~ 0001.... ]]; then
+            adapter="recalboxrgbjamma"; dtbo_extra="2${board},rev=2"; crt=true;
+          elif [[ $binaryId =~ .1100... ]]; then
+            adapter="recalboxrgbjamma"; dtbo_extra="2${board},rev=1"; crt=true;
+          fi
+        fi
+      fi
+    fi
+  fi
+fi
+dtoverlay -r "i2ccustom${board}"
+rmmod i2c-dev
+umount /config
+if [ "${adapter}" != "" ]; then
+  mkdir -p /tmp/recalboxhardware/
+  echo "${id}" > "/tmp/recalboxhardware/${adapter}"
+  mount -o remount,rw /boot
+  echo "S03recalbox-official-harware-detector ${adapter}${dtbo_extra} detected !" >> /boot/hardware.log
+  mount -o remount,ro /boot
+
+  # install
+  if $crt && ! isCRTLoaded; then
+    # Installing rgb hat
+    CONFIG="/boot/crt/recalbox-crt-options.cfg"
+    CRT_DAC_FILE="/boot/crt/recalbox-crt-config.txt"
+    mount -o remount,rw /boot
+    mkdir -p /boot/crt/
+    if ! grep -q "dtoverlay=${adapter}${dtbo_extra}" "${CRT_DAC_FILE}"; then
+      echo -e "\ndtoverlay=${adapter}${dtbo_extra}" > "${CRT_DAC_FILE}"
+      if [ "$(getArchName)" == "rpi5_64" ]; then
+        echo -e "power_force_3v3_pwm=1" >> "${CRT_DAC_FILE}"
+      fi
+      if grep -q "adapter.type = .\+" "${CONFIG}";then
+          sed -i "s/adapter.type = .+/adapter.type = ${adapter}/g" "${CONFIG}"
+      else
+          echo -e "\nadapter.type = ${adapter}" >> "${CONFIG}"
+      fi
+      echo "S03recalbox-official-harware-detector Reboot after installation of ${adapter}${dtbo_extra}" >> /boot/hardware.log
+      reboot
+    fi
+    mount -o ro,remount /boot
+  fi
+fi

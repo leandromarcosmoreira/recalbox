@@ -1,0 +1,32 @@
+//
+// Created by thierry.imbert on 12/02/2020.
+//
+#pragma once
+
+#include <guis/menus/base/Menu.h>
+
+class MenuQuit : public Menu
+                  , private ISubMenuSelected
+{
+  public:
+    explicit MenuQuit(WindowManager& window);
+
+    static void PushQuitGui(WindowManager& window);
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+  private:
+    enum class Components
+    {
+      Shutdown,
+      FastShutdown,
+      Reboot,
+    };
+
+    /*
+     * ISubMenuSelected implementation
+     */
+
+    void SubMenuSelected(const ItemSubMenu& item, int id) override;
+};

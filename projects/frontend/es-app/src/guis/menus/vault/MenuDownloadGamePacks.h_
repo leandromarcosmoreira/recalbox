@@ -1,0 +1,31 @@
+//
+// Created by bkg2k on 05/05/23.
+//
+#pragma once
+
+#include "guis/menus/base/Menu.h"
+#include "systems/SystemDescriptor.h"
+
+// Forward declarations
+class SystemManager;
+
+class MenuDownloadGamePacks: public Menu
+                           , private IActionTriggered
+{
+  public:
+    //! Constructor
+    MenuDownloadGamePacks(WindowManager& window, SystemManager& systemManager);
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+  private:
+    //! System manager reference
+    SystemManager& mSystemManager;
+
+    /*
+     * IActionTriggered implementation
+     */
+
+    void MenuActionTriggered(ItemAction& item, int id) override;
+};

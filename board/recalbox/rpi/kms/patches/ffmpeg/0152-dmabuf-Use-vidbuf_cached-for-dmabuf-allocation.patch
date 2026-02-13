@@ -1,0 +1,235 @@
+From ee07ce6460f7629206e8f4861ca42ffdd6c72a4d Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 24 Oct 2023 12:54:02 +0100
+Subject: [PATCH 152/176] dmabuf: Use vidbuf_cached for dmabuf allocation
+
+Gates usage to kernel 6.1.57 and later as that is when the rpivid iommu
+patch was merged.
+
+(cherry picked from commit 9a898f4ea127b30f1ca81eb98dfba3dd101db179)
+---
+ libavcodec/v4l2_req_dmabufs.c  | 73 ++++++++++++++++++++++++++--------
+ libavcodec/v4l2_req_dmabufs.h  |  1 +
+ libavcodec/v4l2_request_hevc.c | 49 ++++++++++++-----------
+ 3 files changed, 83 insertions(+), 40 deletions(-)
+
+diff --git a/libavcodec/v4l2_req_dmabufs.c b/libavcodec/v4l2_req_dmabufs.c
+index 017c3892a5..9a4b69d3fa 100644
+--- a/libavcodec/v4l2_req_dmabufs.c
++++ b/libavcodec/v4l2_req_dmabufs.c
+@@ -15,11 +15,12 @@
+ #include "v4l2_req_dmabufs.h"
+ #include "v4l2_req_utils.h"
+ 
+-#define DMABUF_NAME1  "/dev/dma_heap/linux,cma"
+-#define DMABUF_NAME2  "/dev/dma_heap/reserved"
+-
+ #define TRACE_ALLOC 0
+ 
++#ifndef __O_CLOEXEC
++#define __O_CLOEXEC 0
++#endif
++
+ struct dmabufs_ctl;
+ struct dmabuf_h;
+ 
+@@ -297,23 +298,33 @@ struct dmabufs_ctl * dmabufs_ctl_ref(struct dmabufs_ctl * const dbsc)
+ //
+ // Alloc dmabuf via CMA
+ 
+-static int ctl_cma_new(struct dmabufs_ctl * dbsc)
++static int ctl_cma_new2(struct dmabufs_ctl * dbsc, const char * const * names)
+ {
+-    while ((dbsc->fd = open(DMABUF_NAME1, O_RDWR)) == -1 &&
+-           errno == EINTR)
+-        /* Loop */;
+-
+-    if (dbsc->fd == -1) {
+-        while ((dbsc->fd = open(DMABUF_NAME2, O_RDWR)) == -1 &&
++    for (; *names != NULL; ++names)
++    {
++        while ((dbsc->fd = open(*names, O_RDWR | __O_CLOEXEC)) == -1 &&
+                errno == EINTR)
+             /* Loop */;
+-        if (dbsc->fd == -1) {
+-            request_log("Unable to open either %s or %s\n",
+-                    DMABUF_NAME1, DMABUF_NAME2);
+-            return -1;
++        if (dbsc->fd != -1)
++        {
++            request_debug(NULL, "%s: Using dma_heap device %s\n", __func__, *names);
++            return 0;
+         }
++        request_debug(NULL, "%s: Not using dma_heap device %s: %s\n", __func__, *names, strerror(errno));
+     }
+-    return 0;
++    request_log("Unable to open any dma_heap device\n");
++    return -1;
++}
++
++static int ctl_cma_new(struct dmabufs_ctl * dbsc)
++{
++    static const char * const names[] = {
++        "/dev/dma_heap/linux,cma",
++        "/dev/dma_heap/reserved",
++        NULL
++    };
++
++    return ctl_cma_new2(dbsc, names);
+ }
+ 
+ static void ctl_cma_free(struct dmabufs_ctl * dbsc)
+@@ -321,7 +332,6 @@ static void ctl_cma_free(struct dmabufs_ctl * dbsc)
+     if (dbsc->fd != -1)
+         while (close(dbsc->fd) == -1 && errno == EINTR)
+             /* loop */;
+-
+ }
+ 
+ static int buf_cma_alloc(struct dmabufs_ctl * const dbsc, struct dmabuf_h * dh, size_t size)
+@@ -347,6 +357,10 @@ static int buf_cma_alloc(struct dmabufs_ctl * const dbsc, struct dmabuf_h * dh,
+ 
+     dh->fd = data.fd;
+     dh->size = (size_t)data.len;
++
++//    fprintf(stderr, "%s: size=%#zx, ftell=%#zx\n", __func__,
++//            dh->size, (size_t)lseek(dh->fd, 0, SEEK_END));
++
+     return 0;
+ }
+ 
+@@ -364,7 +378,32 @@ static const struct dmabuf_fns dmabuf_cma_fns = {
+ 
+ struct dmabufs_ctl * dmabufs_ctl_new(void)
+ {
+-    request_debug(NULL, "Dmabufs using CMA\n");;
++    request_debug(NULL, "Dmabufs using CMA\n");
+     return dmabufs_ctl_new2(&dmabuf_cma_fns);
+ }
+ 
++static int ctl_cma_new_vidbuf_cached(struct dmabufs_ctl * dbsc)
++{
++    static const char * const names[] = {
++        "/dev/dma_heap/vidbuf_cached",
++        "/dev/dma_heap/linux,cma",
++        "/dev/dma_heap/reserved",
++        NULL
++    };
++
++    return ctl_cma_new2(dbsc, names);
++}
++
++static const struct dmabuf_fns dmabuf_vidbuf_cached_fns = {
++    .buf_alloc  = buf_cma_alloc,
++    .buf_free   = buf_cma_free,
++    .ctl_new    = ctl_cma_new_vidbuf_cached,
++    .ctl_free   = ctl_cma_free,
++};
++
++struct dmabufs_ctl * dmabufs_ctl_new_vidbuf_cached(void)
++{
++    request_debug(NULL, "Dmabufs using Vidbuf\n");
++    return dmabufs_ctl_new2(&dmabuf_vidbuf_cached_fns);
++}
++
+diff --git a/libavcodec/v4l2_req_dmabufs.h b/libavcodec/v4l2_req_dmabufs.h
+index 381ba2708d..8c1ab0b5df 100644
+--- a/libavcodec/v4l2_req_dmabufs.h
++++ b/libavcodec/v4l2_req_dmabufs.h
+@@ -7,6 +7,7 @@ struct dmabufs_ctl;
+ struct dmabuf_h;
+ 
+ struct dmabufs_ctl * dmabufs_ctl_new(void);
++struct dmabufs_ctl * dmabufs_ctl_new_vidbuf_cached(void);
+ void dmabufs_ctl_unref(struct dmabufs_ctl ** const pdbsc);
+ struct dmabufs_ctl * dmabufs_ctl_ref(struct dmabufs_ctl * const dbsc);
+ 
+diff --git a/libavcodec/v4l2_request_hevc.c b/libavcodec/v4l2_request_hevc.c
+index db7ed13b6d..5b37319d6a 100644
+--- a/libavcodec/v4l2_request_hevc.c
++++ b/libavcodec/v4l2_request_hevc.c
+@@ -176,17 +176,6 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+     av_log(avctx, AV_LOG_DEBUG, "Trying V4L2 devices: %s,%s\n",
+            decdev_media_path(decdev), decdev_video_path(decdev));
+ 
+-    if ((ctx->dbufs = dmabufs_ctl_new()) == NULL) {
+-        av_log(avctx, AV_LOG_DEBUG, "Unable to open dmabufs - try mmap buffers\n");
+-        src_memtype = MEDIABUFS_MEMORY_MMAP;
+-        dst_memtype = MEDIABUFS_MEMORY_MMAP;
+-    }
+-    else {
+-        av_log(avctx, AV_LOG_DEBUG, "Dmabufs opened - try dmabuf buffers\n");
+-        src_memtype = MEDIABUFS_MEMORY_DMABUF;
+-        dst_memtype = MEDIABUFS_MEMORY_DMABUF;
+-    }
+-
+     if ((ctx->pq = pollqueue_new()) == NULL) {
+         av_log(avctx, AV_LOG_ERROR, "Unable to create pollqueue\n");
+         goto fail1;
+@@ -202,6 +191,25 @@ static int v4l2_request_hevc_init(AVCodecContext *avctx)
+         goto fail3;
+     }
+ 
++    // Version test for functional Pi5 HEVC iommu.
++    // rpivid kernel patch was merged in 6.1.57
++    // *** Remove when it is unlikely that there are any broken kernels left
++    if (mediabufs_ctl_driver_version(ctx->mbufs) >= MEDIABUFS_DRIVER_VERSION(6,1,57))
++        ctx->dbufs = dmabufs_ctl_new_vidbuf_cached();
++    else
++        ctx->dbufs = dmabufs_ctl_new();
++
++    if (ctx->dbufs == NULL) {
++        av_log(avctx, AV_LOG_DEBUG, "Unable to open dmabufs - try mmap buffers\n");
++        src_memtype = MEDIABUFS_MEMORY_MMAP;
++        dst_memtype = MEDIABUFS_MEMORY_MMAP;
++    }
++    else {
++        av_log(avctx, AV_LOG_DEBUG, "Dmabufs opened - try dmabuf buffers\n");
++        src_memtype = MEDIABUFS_MEMORY_DMABUF;
++        dst_memtype = MEDIABUFS_MEMORY_DMABUF;
++    }
++
+     // Ask for an initial bitbuf size of max size / 4
+     // We will realloc if we need more
+     // Must use sps->h/w as avctx contains cropped size
+@@ -229,23 +237,15 @@ retry_src_memtype:
+         goto fail4;
+     }
+ 
+-    if (V2(ff_v4l2_req_hevc, 4).probe(avctx, ctx) == 0) {
+-        av_log(avctx, AV_LOG_DEBUG, "HEVC API version 4 probed successfully\n");
++    if (V2(ff_v4l2_req_hevc, 4).probe(avctx, ctx) == 0)
+         ctx->fns = &V2(ff_v4l2_req_hevc, 4);
+-    }
+ #if CONFIG_V4L2_REQ_HEVC_VX
+-    else if (V2(ff_v4l2_req_hevc, 3).probe(avctx, ctx) == 0) {
+-        av_log(avctx, AV_LOG_DEBUG, "HEVC API version 3 probed successfully\n");
++    else if (V2(ff_v4l2_req_hevc, 3).probe(avctx, ctx) == 0)
+         ctx->fns = &V2(ff_v4l2_req_hevc, 3);
+-    }
+-    else if (V2(ff_v4l2_req_hevc, 2).probe(avctx, ctx) == 0) {
+-        av_log(avctx, AV_LOG_DEBUG, "HEVC API version 2 probed successfully\n");
++    else if (V2(ff_v4l2_req_hevc, 2).probe(avctx, ctx) == 0)
+         ctx->fns = &V2(ff_v4l2_req_hevc, 2);
+-    }
+-    else if (V2(ff_v4l2_req_hevc, 1).probe(avctx, ctx) == 0) {
+-        av_log(avctx, AV_LOG_DEBUG, "HEVC API version 1 probed successfully\n");
++    else if (V2(ff_v4l2_req_hevc, 1).probe(avctx, ctx) == 0)
+         ctx->fns = &V2(ff_v4l2_req_hevc, 1);
+-    }
+ #endif
+     else {
+         av_log(avctx, AV_LOG_ERROR, "No HEVC version probed successfully\n");
+@@ -253,6 +253,9 @@ retry_src_memtype:
+         goto fail4;
+     }
+ 
++    av_log(avctx, AV_LOG_DEBUG, "%s probed successfully: driver v %#x\n",
++           ctx->fns->name, mediabufs_ctl_driver_version(ctx->mbufs));
++
+     if (mediabufs_dst_fmt_set(ctx->mbufs, sps->width, sps->height, dst_fmt_accept_cb, avctx)) {
+         char tbuf1[5];
+         av_log(avctx, AV_LOG_ERROR, "Failed to set destination format: %s %dx%d\n", strfourcc(tbuf1, src_pix_fmt), sps->width, sps->height);
+-- 
+2.46.0
+

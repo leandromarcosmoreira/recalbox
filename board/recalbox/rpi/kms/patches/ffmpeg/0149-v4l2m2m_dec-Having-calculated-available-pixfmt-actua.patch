@@ -1,0 +1,34 @@
+From 0a84cb865caf38673178f022665464bdfb76737c Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 6 Sep 2023 14:36:41 +0100
+Subject: [PATCH 149/176] v4l2m2m_dec: Having calculated available pixfmt
+ actually pass them to user
+
+---
+ libavcodec/v4l2_m2m_dec.c | 3 ++-
+ 1 file changed, 2 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index f9a9dfb0bb..6c3a9434b2 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -1099,6 +1099,7 @@ choose_capture_format(AVCodecContext * const avctx, V4L2m2mContext * const s)
+     fmts2[n++] = AV_PIX_FMT_DRM_PRIME;
+     for (i = 0; i != fmts_n; ++i) {
+         const enum AVPixelFormat f = ff_v4l2_format_v4l2_to_avfmt(fmts[i], AV_CODEC_ID_RAWVIDEO);
++        av_log(avctx, AV_LOG_TRACE, "VLC pix %s -> %s\n", av_fourcc2str(fmts[i]), av_get_pix_fmt_name(f));
+         if (f == AV_PIX_FMT_NONE)
+             continue;
+ 
+@@ -1121,7 +1122,7 @@ choose_capture_format(AVCodecContext * const avctx, V4L2m2mContext * const s)
+     fmts2[n - 1] = fmts2[pref_n];
+     fmts2[pref_n] = t;
+ 
+-    gf_pix_fmt = ff_get_format(avctx, avctx->codec->pix_fmts);
++    gf_pix_fmt = ff_get_format(avctx, fmts2);
+     av_log(avctx, AV_LOG_DEBUG, "avctx requested=%d (%s) %dx%d; get_format requested=%d (%s)\n",
+            avctx->pix_fmt, av_get_pix_fmt_name(avctx->pix_fmt),
+            avctx->coded_width, avctx->coded_height,
+-- 
+2.46.0
+

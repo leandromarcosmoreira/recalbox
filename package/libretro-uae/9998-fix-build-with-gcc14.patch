@@ -1,0 +1,45 @@
+From 4493a194dd42e593914c26952ee8cb4ba750f596 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Tom=C3=A1=C5=A1=20Kelemen?= <vudiq@vudiq.sk>
+Date: Wed, 22 May 2024 14:35:29 +0200
+Subject: [PATCH] fix build with gcc14 (#658)
+
+---
+ retrodep/parser.c      | 4 ++--
+ retrodep/serial_host.c | 2 +-
+ 2 files changed, 3 insertions(+), 3 deletions(-)
+
+diff --git a/retrodep/parser.c b/retrodep/parser.c
+index 7ab5b637..9766e47a 100644
+--- a/retrodep/parser.c
++++ b/retrodep/parser.c
+@@ -196,7 +196,7 @@ void uaeser_clearbuffers (void *vsd) {}
+ int uaeser_open (void *vsd, void *user, int unit) { return 0; }
+ void uaeser_close (void *vsd) {}
+ 
+-static HANDLE hCom = INVALID_HANDLE_VALUE;
++static HANDLE hCom = (HANDLE)INVALID_HANDLE_VALUE;
+ static DCB dcb;
+ static DWORD fDtrControl = DTR_CONTROL_DISABLE, fRtsControl = RTS_CONTROL_DISABLE;
+ #if 0
+@@ -469,7 +469,7 @@ void closeser (void)
+ #if 0
+ 		CloseHandle (hCom);
+ #endif
+-		hCom = INVALID_HANDLE_VALUE;
++		hCom = (HANDLE)INVALID_HANDLE_VALUE;
+ 	}
+ 	if (midi_ready) {
+ 		extern uae_u16 serper;
+diff --git a/retrodep/serial_host.c b/retrodep/serial_host.c
+index 03af6852..a807dfaa 100644
+--- a/retrodep/serial_host.c
++++ b/retrodep/serial_host.c
+@@ -144,7 +144,7 @@ void shmem_serial_delete(void)
+ 		CloseHandle(sermap_handle);
+ #endif
+ 	sermap_data = NULL;
+-	sermap_handle = NULL;
++	sermap_handle = (HANDLE)NULL;
+ 	sermap1 = sermap2 = NULL;
+ }
+ 

@@ -1,0 +1,78 @@
+From e035bd72787d78922f60bd954dc702ed22fe3923 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 7 Jun 2023 11:14:52 +0000
+Subject: [PATCH 132/176] v4l2_m2m: Add encode size check
+
+Previously an out of bounds size would fail whilst trying to copy the
+buffer with an unhelpful message. This produces a better error at init
+time.
+
+(cherry picked from commit 0b61c4617e26f043d28d44c8767f7b9fd4882f97)
+---
+ libavcodec/v4l2_m2m.c | 43 +++++++++++++++++++++++++++++++++++++++++++
+ 1 file changed, 43 insertions(+)
+
+diff --git a/libavcodec/v4l2_m2m.c b/libavcodec/v4l2_m2m.c
+index f802687b1b..28d9ed4988 100644
+--- a/libavcodec/v4l2_m2m.c
++++ b/libavcodec/v4l2_m2m.c
+@@ -109,6 +109,44 @@ static int v4l2_prepare_contexts(V4L2m2mContext *s, int probe)
+     return AVERROR(EINVAL);
+ }
+ 
++static int check_size(AVCodecContext * const avctx, V4L2m2mContext * const s)
++{
++    struct v4l2_format fmt = {.type = s->output.type};
++    int rv;
++    uint32_t pixfmt = ff_v4l2_format_avfmt_to_v4l2(avctx->pix_fmt);
++    unsigned int w;
++    unsigned int h;
++
++    if (V4L2_TYPE_IS_MULTIPLANAR(fmt.type)) {
++        fmt.fmt.pix_mp.pixelformat = pixfmt;
++        fmt.fmt.pix_mp.width = avctx->width;
++        fmt.fmt.pix_mp.height = avctx->height;
++    }
++    else {
++        fmt.fmt.pix.pixelformat = pixfmt;
++        fmt.fmt.pix.width = avctx->width;
++        fmt.fmt.pix.height = avctx->height;
++    }
++
++    rv = ioctl(s->fd, VIDIOC_TRY_FMT, &fmt);
++
++    if (rv != 0) {
++        rv = AVERROR(errno);
++        av_log(avctx, AV_LOG_ERROR, "%s: Tryfmt failed: %s\n", __func__, av_err2str(rv));
++        return rv;
++    }
++
++    w = ff_v4l2_get_format_width(&fmt);
++    h = ff_v4l2_get_format_height(&fmt);
++
++    if (w < avctx->width || h < avctx->height) {
++        av_log(avctx, AV_LOG_WARNING, "%s: Size check failed: asked for %dx%d, got: %dx%d\n", __func__, avctx->width, avctx->height, w, h);
++        return AVERROR(EINVAL);
++    }
++
++    return 0;
++}
++
+ static int v4l2_probe_driver(V4L2m2mContext *s)
+ {
+     void *log_ctx = s->avctx;
+@@ -128,6 +166,11 @@ static int v4l2_probe_driver(V4L2m2mContext *s)
+         goto done;
+     }
+ 
++    // If being given frames (encode) check that V4L2 can cope with the size
++    if (s->output.av_codec_id == AV_CODEC_ID_RAWVIDEO &&
++        (ret = check_size(s->avctx, s)) != 0)
++        goto done;
++
+     ret = ff_v4l2_context_get_format(&s->capture, 1);
+     if (ret) {
+         av_log(log_ctx, AV_LOG_DEBUG, "v4l2 capture format not supported\n");
+-- 
+2.46.0
+

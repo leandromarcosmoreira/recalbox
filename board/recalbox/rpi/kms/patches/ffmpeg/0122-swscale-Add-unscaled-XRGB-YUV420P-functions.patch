@@ -1,0 +1,334 @@
+From d073e2ddf259c2f05dec6325f08a498f1b35ef1e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 20 Apr 2023 11:26:10 +0000
+Subject: [PATCH 122/176] swscale: Add unscaled XRGB->YUV420P functions
+
+(cherry picked from commit 04cc32ee3f390de513ad8c6156c0c66b2c60abc8)
+---
+ libswscale/rgb2rgb.c          |  20 ++++++
+ libswscale/rgb2rgb.h          |  16 +++++
+ libswscale/rgb2rgb_template.c | 123 ++++++++++++++++++++++++++++++----
+ libswscale/swscale_unscaled.c |  89 ++++++++++++++++++++++++
+ 4 files changed, 236 insertions(+), 12 deletions(-)
+
+diff --git a/libswscale/rgb2rgb.c b/libswscale/rgb2rgb.c
+index 84bb56e60e..c3b9079d2b 100644
+--- a/libswscale/rgb2rgb.c
++++ b/libswscale/rgb2rgb.c
+@@ -88,6 +88,26 @@ void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst,
+                        int width, int height,
+                        int lumStride, int chromStride, int srcStride,
+                        int32_t *rgb2yuv);
++void (*ff_rgbxtoyv12)(const uint8_t *src, uint8_t *ydst,
++					  uint8_t *udst, uint8_t *vdst,
++					  int width, int height,
++					  int lumStride, int chromStride, int srcStride,
++					  int32_t *rgb2yuv);
++void (*ff_bgrxtoyv12)(const uint8_t *src, uint8_t *ydst,
++					  uint8_t *udst, uint8_t *vdst,
++					  int width, int height,
++					  int lumStride, int chromStride, int srcStride,
++					  int32_t *rgb2yuv);
++void (*ff_xrgbtoyv12)(const uint8_t *src, uint8_t *ydst,
++					  uint8_t *udst, uint8_t *vdst,
++					  int width, int height,
++					  int lumStride, int chromStride, int srcStride,
++					  int32_t *rgb2yuv);
++void (*ff_xbgrtoyv12)(const uint8_t *src, uint8_t *ydst,
++					  uint8_t *udst, uint8_t *vdst,
++					  int width, int height,
++					  int lumStride, int chromStride, int srcStride,
++					  int32_t *rgb2yuv);
+ void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                  int srcStride, int dstStride);
+ void (*interleaveBytes)(const uint8_t *src1, const uint8_t *src2, uint8_t *dst,
+diff --git a/libswscale/rgb2rgb.h b/libswscale/rgb2rgb.h
+index 0028ab345f..a0dd3ffb79 100644
+--- a/libswscale/rgb2rgb.h
++++ b/libswscale/rgb2rgb.h
+@@ -135,6 +135,22 @@ extern void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                               int width, int height,
+                               int lumStride, int chromStride, int srcStride,
+                               int32_t *rgb2yuv);
++extern void (*ff_rgbxtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             int32_t *rgb2yuv);
++extern void (*ff_bgrxtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             int32_t *rgb2yuv);
++extern void (*ff_xrgbtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             int32_t *rgb2yuv);
++extern void (*ff_xbgrtoyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                             int width, int height,
++                             int lumStride, int chromStride, int srcStride,
++                             int32_t *rgb2yuv);
+ extern void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                         int srcStride, int dstStride);
+ 
+diff --git a/libswscale/rgb2rgb_template.c b/libswscale/rgb2rgb_template.c
+index e2437826dd..703de90690 100644
+--- a/libswscale/rgb2rgb_template.c
++++ b/libswscale/rgb2rgb_template.c
+@@ -708,30 +708,125 @@ static void rgb24toyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+     }
+ }
+ 
++static const uint8_t x_rgb[9] = {
++    RY_IDX, GY_IDX, BY_IDX,
++    RU_IDX, GU_IDX, BU_IDX,
++    RV_IDX, GV_IDX, BV_IDX,
++};
++
++static const uint8_t x_bgr[9] = {
++     BY_IDX, GY_IDX, RY_IDX,
++     BU_IDX, GU_IDX, RU_IDX,
++     BV_IDX, GV_IDX, RV_IDX,
++};
++
+ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                    uint8_t *vdst, int width, int height, int lumStride,
+                    int chromStride, int srcStride, int32_t *rgb2yuv)
+ {
+-    static const uint8_t x[9] = {
+-        RY_IDX, GY_IDX, BY_IDX,
+-        RU_IDX, GU_IDX, BU_IDX,
+-        RV_IDX, GV_IDX, BV_IDX,
+-    };
+-    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x);
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
+ }
+ 
+ void ff_bgr24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                    uint8_t *vdst, int width, int height, int lumStride,
+                    int chromStride, int srcStride, int32_t *rgb2yuv)
+ {
+-    static const uint8_t x[9] = {
+-         BY_IDX, GY_IDX, RY_IDX,
+-         BU_IDX, GU_IDX, RU_IDX,
+-         BV_IDX, GV_IDX, RV_IDX,
+-    };
+-    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x);
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
+ }
+ 
++static void rgbxtoyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv,
++                   const uint8_t x[9])
++{
++    int32_t ry = rgb2yuv[x[0]], gy = rgb2yuv[x[1]], by = rgb2yuv[x[2]];
++    int32_t ru = rgb2yuv[x[3]], gu = rgb2yuv[x[4]], bu = rgb2yuv[x[5]];
++    int32_t rv = rgb2yuv[x[6]], gv = rgb2yuv[x[7]], bv = rgb2yuv[x[8]];
++    int y;
++    const int chromWidth = width >> 1;
++
++    for (y = 0; y < height; y += 2) {
++        int i;
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) +  16;
++            unsigned int V = ((rv * r + gv * g + bv * b) >> RGB2YUV_SHIFT) + 128;
++            unsigned int U = ((ru * r + gu * g + bu * b) >> RGB2YUV_SHIFT) + 128;
++
++            udst[i]     = U;
++            vdst[i]     = V;
++            ydst[2 * i] = Y;
++
++            b = src[8 * i + 6];
++            g = src[8 * i + 5];
++            r = src[8 * i + 4];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        ydst += lumStride;
++        src  += srcStride;
++
++        if (y+1 == height)
++            break;
++
++        for (i = 0; i < chromWidth; i++) {
++            unsigned int b = src[8 * i + 2];
++            unsigned int g = src[8 * i + 1];
++            unsigned int r = src[8 * i + 0];
++
++            unsigned int Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++
++            ydst[2 * i] = Y;
++
++            b = src[8 * i + 6];
++            g = src[8 * i + 5];
++            r = src[8 * i + 4];
++
++            Y = ((ry * r + gy * g + by * b) >> RGB2YUV_SHIFT) + 16;
++            ydst[2 * i + 1] = Y;
++        }
++        udst += chromStride;
++        vdst += chromStride;
++        ydst += lumStride;
++        src  += srcStride;
++    }
++}
++
++static void ff_rgbxtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
++}
++
++static void ff_bgrxtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
++}
++
++// As the general code does no SIMD-like ops simply adding 1 to the src address
++// will fix the ignored alpha position
++static void ff_xrgbtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src + 1, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_rgb);
++}
++
++static void ff_xbgrtoyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    rgbxtoyv12_x(src + 1, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x_bgr);
++}
++
++
+ static void interleaveBytes_c(const uint8_t *src1, const uint8_t *src2,
+                               uint8_t *dest, int width, int height,
+                               int src1Stride, int src2Stride, int dstStride)
+@@ -1006,6 +1101,10 @@ static av_cold void rgb2rgb_init_c(void)
+     planar2x           = planar2x_c;
+     ff_rgb24toyv12     = ff_rgb24toyv12_c;
+     ff_bgr24toyv12     = ff_bgr24toyv12_c;
++    ff_rgbxtoyv12      = ff_rgbxtoyv12_c;
++    ff_bgrxtoyv12      = ff_bgrxtoyv12_c;
++    ff_xrgbtoyv12      = ff_xrgbtoyv12_c;
++    ff_xbgrtoyv12      = ff_xbgrtoyv12_c;
+     interleaveBytes    = interleaveBytes_c;
+     deinterleaveBytes  = deinterleaveBytes_c;
+     vu9_to_vu12        = vu9_to_vu12_c;
+diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
+index f3c6b411e9..4e63cf9414 100644
+--- a/libswscale/swscale_unscaled.c
++++ b/libswscale/swscale_unscaled.c
+@@ -1671,6 +1671,74 @@ static int rgb24ToYv12Wrapper(SwsContext *c, const uint8_t *src[],
+     return srcSliceH;
+ }
+ 
++static int bgrxToYv12Wrapper(SwsContext *c, const uint8_t *src[],
++                             int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *dst[], int dstStride[])
++{
++    ff_bgrxtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->srcW, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->srcW, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int rgbxToYv12Wrapper(SwsContext *c, const uint8_t *src[],
++                             int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *dst[], int dstStride[])
++{
++    ff_rgbxtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->srcW, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->srcW, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int xbgrToYv12Wrapper(SwsContext *c, const uint8_t *src[],
++                             int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *dst[], int dstStride[])
++{
++    ff_xbgrtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->srcW, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->srcW, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
++static int xrgbToYv12Wrapper(SwsContext *c, const uint8_t *src[],
++                             int srcStride[], int srcSliceY, int srcSliceH,
++                             uint8_t *dst[], int dstStride[])
++{
++    ff_xrgbtoyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->srcW, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->srcW, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
+ static int yvu9ToYv12Wrapper(SwsContext *c, const uint8_t *src[],
+                              int srcStride[], int srcSliceY, int srcSliceH,
+                              uint8_t *dst[], int dstStride[])
+@@ -2060,6 +2128,27 @@ void ff_get_unscaled_swscale(SwsContext *c)
+         !(flags & SWS_ACCURATE_RND) && !(dstW&1))
+         c->convert_unscaled = rgb24ToYv12Wrapper;
+ 
++    /* bgrxtoYV12 */
++    if (((srcFormat == AV_PIX_FMT_BGRA && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_BGR0 && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND))
++        c->convert_unscaled = bgrxToYv12Wrapper;
++    /* rgbx24toYV12 */
++    if (((srcFormat == AV_PIX_FMT_RGBA && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_RGB0 && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        c->convert_unscaled = rgbxToYv12Wrapper;
++    /* xbgrtoYV12 */
++    if (((srcFormat == AV_PIX_FMT_ABGR && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_0BGR && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        c->convert_unscaled = xbgrToYv12Wrapper;
++    /* xrgb24toYV12 */
++    if (((srcFormat == AV_PIX_FMT_ARGB && dstFormat == AV_PIX_FMT_YUV420P) ||
++         (srcFormat == AV_PIX_FMT_0RGB && (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P))) &&
++        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        c->convert_unscaled = xrgbToYv12Wrapper;
++
+     /* RGB/BGR -> RGB/BGR (no dither needed forms) */
+     if (isAnyRGB(srcFormat) && isAnyRGB(dstFormat) && findRgbConvFn(c)
+         && (!needsDither || (c->flags&(SWS_FAST_BILINEAR|SWS_POINT))))
+-- 
+2.46.0
+

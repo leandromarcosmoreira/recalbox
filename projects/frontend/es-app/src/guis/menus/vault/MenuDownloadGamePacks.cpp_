@@ -1,0 +1,34 @@
+//
+// Created by bkg2k on 05/05/23.
+//
+
+#include "MenuDownloadGamePacks.h"
+#include "systems/DownloaderManager.h"
+#include "guis/GuiDownloader.h"
+#include "systems/SystemDeserializer.h"
+#include "systems/SystemManager.h"
+#include "guis/menus/base/ItemAction.h"
+
+MenuDownloadGamePacks::MenuDownloadGamePacks(WindowManager& window, SystemManager& systemManager)
+  : Menu(window, InheritableContext(), _("DOWNLOAD CONTENTS"))
+  , mSystemManager(systemManager)
+{
+}
+
+void MenuDownloadGamePacks::BuildMenuItems()
+{
+  for(const SystemData* system : mSystemManager.AllSystems())
+    if (system->Descriptor().HasDownloader())
+      AddAction(system->Descriptor().FullName(), _("DOWNLOAD"), 0, true, this, String::Empty);
+}
+
+void MenuDownloadGamePacks::MenuActionTriggered(ItemAction& item, int id)
+{
+  (void)item;
+  for(SystemData* system : mSystemManager.AllSystems())
+    if (system->Descriptor().FullName() == item.Label())
+    {
+      mWindow.pushGui(new GuiDownloader(mWindow, *system, mSystemManager));
+      break;
+    }
+}

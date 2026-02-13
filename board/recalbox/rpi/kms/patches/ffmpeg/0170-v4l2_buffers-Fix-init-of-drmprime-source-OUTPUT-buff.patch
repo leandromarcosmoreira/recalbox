@@ -1,0 +1,28 @@
+From 0aba68ad907ecd6045760e3bc4e430237aaec4dd Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Feb 2024 12:57:08 +0000
+Subject: [PATCH 170/176] v4l2_buffers: Fix init of drmprime source (OUTPUT)
+ buffers for encode
+
+Previous fix for mmaped dmabuf CAPTURE buffers broke this due to failure
+to note that dmabuf export wasn't wanted for OUTPUT buffers.
+---
+ libavcodec/v4l2_buffers.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index 15fd688da2..765f7d4b97 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -1049,7 +1049,7 @@ int ff_v4l2_buffer_initialize(AVBufferRef ** pbufref, int index, V4L2Context *ct
+         avbuf->buf.length    = avbuf->planes[0].length;
+     }
+ 
+-    if (!want_mmap) {
++    if (V4L2_TYPE_IS_CAPTURE(ctx->type) && !want_mmap) {
+         // export_drm does dmabuf alloc if we aren't using v4l2 alloc
+         ret = v4l2_buffer_export_drm(avbuf);
+         if (ret) {
+-- 
+2.46.0
+

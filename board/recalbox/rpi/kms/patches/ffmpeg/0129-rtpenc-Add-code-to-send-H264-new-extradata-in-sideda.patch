@@ -1,0 +1,55 @@
+From 95714a7946c099e8314cc6748d83a8c4fe4d6df2 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 4 May 2023 14:26:14 +0000
+Subject: [PATCH 129/176] rtpenc: Add code to send H264 new extradata in
+ sidedata
+
+Fixes issue with pi V4L2 H264 encode which cannot create extradata
+at init time.
+
+(cherry picked from commit 4f852b4b093f841b64b4934a6f1720e98e4e0f2c)
+---
+ libavformat/rtpenc.c | 18 ++++++++++++++++++
+ 1 file changed, 18 insertions(+)
+
+diff --git a/libavformat/rtpenc.c b/libavformat/rtpenc.c
+index a8d296a154..f67dc2a15a 100644
+--- a/libavformat/rtpenc.c
++++ b/libavformat/rtpenc.c
+@@ -19,6 +19,7 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
++#include "avc.h"
+ #include "avformat.h"
+ #include "mpegts.h"
+ #include "internal.h"
+@@ -585,8 +586,25 @@ static int rtp_write_packet(AVFormatContext *s1, AVPacket *pkt)
+         ff_rtp_send_vc2hq(s1, pkt->data, size, st->codecpar->field_order != AV_FIELD_PROGRESSIVE ? 1 : 0);
+         break;
+     case AV_CODEC_ID_H264:
++    {
++        uint8_t *side_data;
++        int side_data_size = 0;
++
++        side_data = av_packet_get_side_data(pkt, AV_PKT_DATA_NEW_EXTRADATA,
++                                            &side_data_size);
++
++        if (side_data_size != 0) {
++            int ps_size = side_data_size;
++            uint8_t * ps_buf = NULL;
++
++            ff_avc_write_annexb_extradata(side_data, &ps_buf, &ps_size);
++            av_log(s1, AV_LOG_TRACE, "H264: write side data=%d\n", ps_size);
++            ff_rtp_send_h264_hevc(s1, ps_buf ? ps_buf : side_data, ps_size);
++            av_free(ps_buf);
++        }
+         ff_rtp_send_h264_hevc(s1, pkt->data, size);
+         break;
++    }
+     case AV_CODEC_ID_H261:
+         ff_rtp_send_h261(s1, pkt->data, size);
+         break;
+-- 
+2.46.0
+

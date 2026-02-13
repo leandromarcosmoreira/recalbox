@@ -1,0 +1,160 @@
+From 14cafefe2facecdd97d6e3e48325d20f1e2b180b Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 19 Apr 2023 10:47:58 +0000
+Subject: [PATCH 121/176] swcale: Add explicit bgr24->yv12 conversion
+
+(cherry picked from commit 9a22d429f46a038321c66a0cd54737177641b434)
+---
+ libswscale/rgb2rgb.c          |  5 +++++
+ libswscale/rgb2rgb.h          |  7 +++++++
+ libswscale/rgb2rgb_template.c | 36 ++++++++++++++++++++++++++++++-----
+ libswscale/swscale_unscaled.c | 22 +++++++++++++++++++++
+ 4 files changed, 65 insertions(+), 5 deletions(-)
+
+diff --git a/libswscale/rgb2rgb.c b/libswscale/rgb2rgb.c
+index e98fdac8ea..84bb56e60e 100644
+--- a/libswscale/rgb2rgb.c
++++ b/libswscale/rgb2rgb.c
+@@ -83,6 +83,11 @@ void (*ff_rgb24toyv12)(const uint8_t *src, uint8_t *ydst,
+                        int width, int height,
+                        int lumStride, int chromStride, int srcStride,
+                        int32_t *rgb2yuv);
++void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst,
++                       uint8_t *udst, uint8_t *vdst,
++                       int width, int height,
++                       int lumStride, int chromStride, int srcStride,
++                       int32_t *rgb2yuv);
+ void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                  int srcStride, int dstStride);
+ void (*interleaveBytes)(const uint8_t *src1, const uint8_t *src2, uint8_t *dst,
+diff --git a/libswscale/rgb2rgb.h b/libswscale/rgb2rgb.h
+index f3951d523e..0028ab345f 100644
+--- a/libswscale/rgb2rgb.h
++++ b/libswscale/rgb2rgb.h
+@@ -79,6 +79,9 @@ void    rgb12to15(const uint8_t *src, uint8_t *dst, int src_size);
+ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                       uint8_t *vdst, int width, int height, int lumStride,
+                       int chromStride, int srcStride, int32_t *rgb2yuv);
++void ff_bgr24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                      uint8_t *vdst, int width, int height, int lumStride,
++                      int chromStride, int srcStride, int32_t *rgb2yuv);
+ 
+ /**
+  * Height should be a multiple of 2 and width should be a multiple of 16.
+@@ -128,6 +131,10 @@ extern void (*ff_rgb24toyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                               int width, int height,
+                               int lumStride, int chromStride, int srcStride,
+                               int32_t *rgb2yuv);
++extern void (*ff_bgr24toyv12)(const uint8_t *src, uint8_t *ydst, uint8_t *udst, uint8_t *vdst,
++                              int width, int height,
++                              int lumStride, int chromStride, int srcStride,
++                              int32_t *rgb2yuv);
+ extern void (*planar2x)(const uint8_t *src, uint8_t *dst, int width, int height,
+                         int srcStride, int dstStride);
+ 
+diff --git a/libswscale/rgb2rgb_template.c b/libswscale/rgb2rgb_template.c
+index 42c69801ba..e2437826dd 100644
+--- a/libswscale/rgb2rgb_template.c
++++ b/libswscale/rgb2rgb_template.c
+@@ -646,13 +646,14 @@ static inline void uyvytoyv12_c(const uint8_t *src, uint8_t *ydst,
+  * others are ignored in the C version.
+  * FIXME: Write HQ version.
+  */
+-void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++static void rgb24toyv12_x(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+                    uint8_t *vdst, int width, int height, int lumStride,
+-                   int chromStride, int srcStride, int32_t *rgb2yuv)
++                   int chromStride, int srcStride, int32_t *rgb2yuv,
++                   const uint8_t x[9])
+ {
+-    int32_t ry = rgb2yuv[RY_IDX], gy = rgb2yuv[GY_IDX], by = rgb2yuv[BY_IDX];
+-    int32_t ru = rgb2yuv[RU_IDX], gu = rgb2yuv[GU_IDX], bu = rgb2yuv[BU_IDX];
+-    int32_t rv = rgb2yuv[RV_IDX], gv = rgb2yuv[GV_IDX], bv = rgb2yuv[BV_IDX];
++    int32_t ry = rgb2yuv[x[0]], gy = rgb2yuv[x[1]], by = rgb2yuv[x[2]];
++    int32_t ru = rgb2yuv[x[3]], gu = rgb2yuv[x[4]], bu = rgb2yuv[x[5]];
++    int32_t rv = rgb2yuv[x[6]], gv = rgb2yuv[x[7]], bv = rgb2yuv[x[8]];
+     int y;
+     const int chromWidth = width >> 1;
+ 
+@@ -707,6 +708,30 @@ void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
+     }
+ }
+ 
++void ff_rgb24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    static const uint8_t x[9] = {
++        RY_IDX, GY_IDX, BY_IDX,
++        RU_IDX, GU_IDX, BU_IDX,
++        RV_IDX, GV_IDX, BV_IDX,
++    };
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x);
++}
++
++void ff_bgr24toyv12_c(const uint8_t *src, uint8_t *ydst, uint8_t *udst,
++                   uint8_t *vdst, int width, int height, int lumStride,
++                   int chromStride, int srcStride, int32_t *rgb2yuv)
++{
++    static const uint8_t x[9] = {
++         BY_IDX, GY_IDX, RY_IDX,
++         BU_IDX, GU_IDX, RU_IDX,
++         BV_IDX, GV_IDX, RV_IDX,
++    };
++    rgb24toyv12_x(src, ydst, udst, vdst, width, height, lumStride, chromStride, srcStride, rgb2yuv, x);
++}
++
+ static void interleaveBytes_c(const uint8_t *src1, const uint8_t *src2,
+                               uint8_t *dest, int width, int height,
+                               int src1Stride, int src2Stride, int dstStride)
+@@ -980,6 +1005,7 @@ static av_cold void rgb2rgb_init_c(void)
+     yuy2toyv12         = yuy2toyv12_c;
+     planar2x           = planar2x_c;
+     ff_rgb24toyv12     = ff_rgb24toyv12_c;
++    ff_bgr24toyv12     = ff_bgr24toyv12_c;
+     interleaveBytes    = interleaveBytes_c;
+     deinterleaveBytes  = deinterleaveBytes_c;
+     vu9_to_vu12        = vu9_to_vu12_c;
+diff --git a/libswscale/swscale_unscaled.c b/libswscale/swscale_unscaled.c
+index a5c9917799..f3c6b411e9 100644
+--- a/libswscale/swscale_unscaled.c
++++ b/libswscale/swscale_unscaled.c
+@@ -1654,6 +1654,23 @@ static int bgr24ToYv12Wrapper(SwsContext *c, const uint8_t *src[],
+     return srcSliceH;
+ }
+ 
++static int rgb24ToYv12Wrapper(SwsContext *c, const uint8_t *src[],
++                              int srcStride[], int srcSliceY, int srcSliceH,
++                              uint8_t *dst[], int dstStride[])
++{
++    ff_bgr24toyv12(
++        src[0],
++        dst[0] +  srcSliceY       * dstStride[0],
++        dst[1] + (srcSliceY >> 1) * dstStride[1],
++        dst[2] + (srcSliceY >> 1) * dstStride[2],
++        c->srcW, srcSliceH,
++        dstStride[0], dstStride[1], srcStride[0],
++        c->input_rgb2yuv_table);
++    if (dst[3])
++        fillPlane(dst[3], dstStride[3], c->srcW, srcSliceH, srcSliceY, 255);
++    return srcSliceH;
++}
++
+ static int yvu9ToYv12Wrapper(SwsContext *c, const uint8_t *src[],
+                              int srcStride[], int srcSliceY, int srcSliceH,
+                              uint8_t *dst[], int dstStride[])
+@@ -2037,6 +2054,11 @@ void ff_get_unscaled_swscale(SwsContext *c)
+         (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
+         !(flags & SWS_ACCURATE_RND) && !(dstW&1))
+         c->convert_unscaled = bgr24ToYv12Wrapper;
++    /* rgb24toYV12 */
++    if (srcFormat == AV_PIX_FMT_RGB24 &&
++        (dstFormat == AV_PIX_FMT_YUV420P || dstFormat == AV_PIX_FMT_YUVA420P) &&
++        !(flags & SWS_ACCURATE_RND) && !(dstW&1))
++        c->convert_unscaled = rgb24ToYv12Wrapper;
+ 
+     /* RGB/BGR -> RGB/BGR (no dither needed forms) */
+     if (isAnyRGB(srcFormat) && isAnyRGB(dstFormat) && findRgbConvFn(c)
+-- 
+2.46.0
+

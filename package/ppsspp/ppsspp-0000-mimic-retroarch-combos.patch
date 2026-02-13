@@ -1,0 +1,122 @@
+diff --git a/Core/ControlMapper.cpp b/Core/ControlMapper.cpp
+index 4730dbd8d3..2f929b1b53 100644
+--- a/Core/ControlMapper.cpp
++++ b/Core/ControlMapper.cpp
+@@ -18,6 +18,7 @@ using KeyMap::MultiInputMapping;
+ const float AXIS_BIND_THRESHOLD = 0.75f;
+ const float AXIS_BIND_THRESHOLD_MOUSE = 0.01f;
+ 
++bool g_Hotkey = false;
+ 
+ // We reduce the threshold of some axes when another axis on the same stick is active.
+ // This makes it easier to hit diagonals if you bind an analog stick to four face buttons or D-Pad.
+@@ -528,7 +529,12 @@ bool ControlMapper::UpdatePSPState(const InputMapping &changedMapping, double no
+ 		}
+ 	}
+ 
+-	if (updateAnalogSticks) {
++  //-------- Retroarch Mimic
++  if (g_Hotkey || (__CtrlPeekButtons() & CTRL_SELECT) == CTRL_SELECT )
++    if (changedButtonMask != 0)
++      onVKey((VirtKey)changedButtonMask, (__CtrlPeekButtons() & changedButtonMask) != 0);
++
++  if (updateAnalogSticks) {
+ 		// If "lightly" (analog limiter) was toggled, we need to update both computed stick outputs.
+ 		UpdateAnalogOutput(0);
+ 		UpdateAnalogOutput(1);
+@@ -686,6 +692,10 @@ void ControlMapper::PSPKey(int deviceId, int pspKeyCode, int flags) {
+ 		if (flags & KEY_UP)
+ 			updatePSPButtons_(0, pspKeyCode);
+ 	}
++
++  if (g_Hotkey || (__CtrlPeekButtons() & CTRL_SELECT) == CTRL_SELECT ) {
++    onVKey((VirtKey)pspKeyCode, true);
++  }
+ }
+ 
+ void ControlMapper::onVKeyAnalog(int deviceId, VirtKey vkey, float value) {
+diff --git a/UI/EmuScreen.cpp b/UI/EmuScreen.cpp
+index f7cfe9c84c..ce8d4c3994 100644
+--- a/UI/EmuScreen.cpp
++++ b/UI/EmuScreen.cpp
+@@ -112,6 +112,7 @@ static AVIDump avi;
+ #endif
+ 
+ extern bool g_TakeScreenshot;
++extern bool g_Hotkey;
+ 
+ static void AssertCancelCallback(const char *message, void *userdata) {
+ 	NOTICE_LOG(Log::CPU, "Broke after assert: %s", message);
+@@ -725,6 +726,7 @@ void EmuScreen::onVKey(VirtKey virtualKeyCode, bool down) {
+ 		}
+ 		break;
+ 	case VIRTKEY_FASTFORWARD:
++  case CTRL_RIGHT:
+ 		if (down && !NetworkWarnUserIfOnlineAndCantSpeed() && !bootPending_) {
+ 			/*
+ 			// This seems like strange behavior. Commented it out.
+@@ -781,11 +783,24 @@ void EmuScreen::onVKey(VirtKey virtualKeyCode, bool down) {
+ 		break;
+ 
+ 	case VIRTKEY_PAUSE:
+-		if (down) {
+-			// Note: We don't check NetworkWarnUserIfOnlineAndCantSpeed, because we can keep
+-			// running in the background of the menu.
+-			pauseTrigger_ = true;
+-			controlMapper_.ForceReleaseVKey(virtualKeyCode);
++    g_Hotkey = down;
++      break;
++
++
++  case CTRL_START:
++    System_ExitApp();
++    //System_SendMessage("event", "exitprogram");
++    //System_SendMessage("finish", "");
++    break;
++
++  case CTRL_CROSS:
++    g_Hotkey = false;
++    if (down) {
++      // Trigger on key-up to partially avoid repetition problems.
++      // This is needed whenever we pop up a menu since the mapper
++      // might miss  the key-up. Same as VIRTKEY_OPENCHAT.
++      pauseTrigger_ = true;
++      controlMapper_.ForceReleaseVKey(virtualKeyCode);
+ 		}
+ 		break;
+ 
+@@ -818,22 +833,26 @@ void EmuScreen::onVKey(VirtKey virtualKeyCode, bool down) {
+ #endif
+ 
+ 	case VIRTKEY_SAVE_STATE:
++  case CTRL_SQUARE:
+ 		if (down && !Achievements::WarnUserIfHardcoreModeActive(true) && !NetworkWarnUserIfOnlineAndCantSavestate() && !bootPending_) {
+ 			SaveState::SaveSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
+ 		}
+ 		break;
+ 	case VIRTKEY_LOAD_STATE:
++  case CTRL_TRIANGLE:
+ 		if (down && !Achievements::WarnUserIfHardcoreModeActive(false) && !NetworkWarnUserIfOnlineAndCantSavestate() && !bootPending_) {
+ 			SaveState::LoadSlot(gamePath_, g_Config.iCurrentStateSlot, &AfterSaveStateAction);
+ 		}
+ 		break;
+ 	case VIRTKEY_PREVIOUS_SLOT:
++  case CTRL_DOWN:
+ 		if (down && !Achievements::WarnUserIfHardcoreModeActive(true) && !NetworkWarnUserIfOnlineAndCantSavestate()) {
+ 			SaveState::PrevSlot();
+ 			System_PostUIMessage(UIMessage::SAVESTATE_DISPLAY_SLOT);
+ 		}
+ 		break;
+ 	case VIRTKEY_NEXT_SLOT:
++  case CTRL_UP:
+ 		if (down && !Achievements::WarnUserIfHardcoreModeActive(true) && !NetworkWarnUserIfOnlineAndCantSavestate()) {
+ 			SaveState::NextSlot();
+ 			System_PostUIMessage(UIMessage::SAVESTATE_DISPLAY_SLOT);
+@@ -962,6 +981,7 @@ void EmuScreen::ProcessVKey(VirtKey virtKey) {
+ 		break;
+ 
+ 	case VIRTKEY_REWIND:
++  case CTRL_LEFT:
+ 		if (!Achievements::WarnUserIfHardcoreModeActive(false) && !NetworkWarnUserIfOnlineAndCantSavestate() && !bootPending_) {
+ 			if (SaveState::CanRewind()) {
+ 				SaveState::Rewind(&AfterSaveStateAction);

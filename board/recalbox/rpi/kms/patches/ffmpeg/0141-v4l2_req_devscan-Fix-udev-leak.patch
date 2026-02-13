@@ -1,0 +1,33 @@
+From e051f3ee886e3e0d30179a458336249bc55b3ff9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Wed, 26 Jul 2023 16:29:39 +0000
+Subject: [PATCH 141/176] v4l2_req_devscan: Fix udev leak
+
+(cherry picked from commit 53b17ffd8a8890ef483163f3c9b0f96b437303f1)
+---
+ libavcodec/v4l2_req_devscan.c | 4 +++-
+ 1 file changed, 3 insertions(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_req_devscan.c b/libavcodec/v4l2_req_devscan.c
+index cfa94d55c4..ee8527ba1f 100644
+--- a/libavcodec/v4l2_req_devscan.c
++++ b/libavcodec/v4l2_req_devscan.c
+@@ -437,12 +437,14 @@ int devscan_build(void * const dc, struct devscan **pscan)
+     }
+ 
+     udev_enumerate_unref(enumerate);
++    udev_unref(udev);
+ 
+     *pscan = scan;
+     return 0;
+ 
+ fail:
+-    udev_unref(udev);
++    if (udev)
++        udev_unref(udev);
+     devscan_delete(&scan);
+     return ret;
+ }
+-- 
+2.46.0
+

@@ -1,0 +1,21 @@
+diff --git a/guncon2.c b/guncon2.c
+index 96dd5d9..d028738 100644
+--- a/guncon2.c
++++ b/guncon2.c
+@@ -90,7 +90,15 @@ static void guncon2_usb_irq(struct urb *urb) {
+         /* Aiming */
+         x = (data[3] << 8) | data[2];
+         y = data[4];
+-
++        int ratio = 10; // 10 percent
++        if(x < 440)
++            x += (440-x) * ratio / 100;
++        if(x > 440)
++            x -= (x-440) * ratio / 100;
++        if(y < 120)
++            y += (120-y) * ratio / 100;
++        if(y > 120)
++            y -= (y-120) * ratio / 100;
+         input_report_abs(guncon2->input_device, ABS_X, x);
+         input_report_abs(guncon2->input_device, ABS_Y, y);
+ 

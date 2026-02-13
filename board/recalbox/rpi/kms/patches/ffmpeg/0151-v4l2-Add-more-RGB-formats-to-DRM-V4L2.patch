@@ -1,0 +1,76 @@
+From e90d92c6552c495d83bbd64d2c025c684d36f196 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Fri, 8 Sep 2023 12:13:38 +0000
+Subject: [PATCH 151/176] v4l2: Add (more) RGB formats to DRM & V4L2
+
+---
+ libavcodec/v4l2_buffers.c | 33 +++++++++++++++++++++++++++++++++
+ libavcodec/v4l2_fmt.c     |  8 ++++++++
+ 2 files changed, 41 insertions(+)
+
+diff --git a/libavcodec/v4l2_buffers.c b/libavcodec/v4l2_buffers.c
+index fe3d6fb94e..b98c215ac3 100644
+--- a/libavcodec/v4l2_buffers.c
++++ b/libavcodec/v4l2_buffers.c
+@@ -390,6 +390,39 @@ static uint8_t * v4l2_get_drm_frame(V4L2Buffer *avbuf)
+     }
+ 
+     switch (avbuf->context->av_pix_fmt) {
++    case AV_PIX_FMT_0BGR:
++        layer->format = DRM_FORMAT_RGBX8888;
++        break;
++    case AV_PIX_FMT_RGB0:
++        layer->format = DRM_FORMAT_XBGR8888;
++        break;
++    case AV_PIX_FMT_0RGB:
++        layer->format = DRM_FORMAT_BGRX8888;
++        break;
++    case AV_PIX_FMT_BGR0:
++        layer->format = DRM_FORMAT_XRGB8888;
++        break;
++
++    case AV_PIX_FMT_ABGR:
++        layer->format = DRM_FORMAT_RGBA8888;
++        break;
++    case AV_PIX_FMT_RGBA:
++        layer->format = DRM_FORMAT_ABGR8888;
++        break;
++    case AV_PIX_FMT_ARGB:
++        layer->format = DRM_FORMAT_BGRA8888;
++        break;
++    case AV_PIX_FMT_BGRA:
++        layer->format = DRM_FORMAT_ARGB8888;
++        break;
++
++    case AV_PIX_FMT_BGR24:
++        layer->format = DRM_FORMAT_BGR888;
++        break;
++    case AV_PIX_FMT_RGB24:
++        layer->format = DRM_FORMAT_RGB888;
++        break;
++
+     case AV_PIX_FMT_YUYV422:
+ 
+         layer->format = DRM_FORMAT_YUYV;
+diff --git a/libavcodec/v4l2_fmt.c b/libavcodec/v4l2_fmt.c
+index 6df47e3f5a..c820a1d522 100644
+--- a/libavcodec/v4l2_fmt.c
++++ b/libavcodec/v4l2_fmt.c
+@@ -42,6 +42,14 @@ static const struct fmt_conversion {
+     { AV_FMT(RGB24),       AV_CODEC(RAWVIDEO),    V4L2_FMT(RGB24) },
+     { AV_FMT(BGR0),        AV_CODEC(RAWVIDEO),    V4L2_FMT(BGR32) },
+     { AV_FMT(0RGB),        AV_CODEC(RAWVIDEO),    V4L2_FMT(RGB32) },
++    { AV_FMT(BGR0),        AV_CODEC(RAWVIDEO),    V4L2_FMT(BGRX32) },
++    { AV_FMT(RGB0),        AV_CODEC(RAWVIDEO),    V4L2_FMT(RGBX32) },
++    { AV_FMT(0BGR),        AV_CODEC(RAWVIDEO),    V4L2_FMT(XBGR32) },
++    { AV_FMT(0RGB),        AV_CODEC(RAWVIDEO),    V4L2_FMT(XRGB32) },
++    { AV_FMT(BGRA),        AV_CODEC(RAWVIDEO),    V4L2_FMT(BGRA32) },
++    { AV_FMT(RGBA),        AV_CODEC(RAWVIDEO),    V4L2_FMT(RGBA32) },
++    { AV_FMT(ABGR),        AV_CODEC(RAWVIDEO),    V4L2_FMT(ABGR32) },
++    { AV_FMT(ARGB),        AV_CODEC(RAWVIDEO),    V4L2_FMT(ARGB32) },
+     { AV_FMT(GRAY8),       AV_CODEC(RAWVIDEO),    V4L2_FMT(GREY) },
+     { AV_FMT(YUV420P),     AV_CODEC(RAWVIDEO),    V4L2_FMT(YUV420) },
+     { AV_FMT(YUYV422),     AV_CODEC(RAWVIDEO),    V4L2_FMT(YUYV) },
+-- 
+2.46.0
+

@@ -1,0 +1,28 @@
+From c0d61baba7414bc5e2fb99618af7c6cf12e2389e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 13 Jun 2023 13:07:55 +0000
+Subject: [PATCH 133/176] v4l2m2m_dec: Fix h264 reorder size if no sps
+ initially
+
+(cherry picked from commit 8832f7924bf47cbca0de251d7b406917f958ebf4)
+---
+ libavcodec/v4l2_m2m_dec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index 495e0291b9..00c7f427c8 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -1024,8 +1024,8 @@ parse_extradata(AVCodecContext * const avctx, V4L2m2mContext * const s)
+                 if (sps) {
+                     avctx->profile = ff_h264_get_profile(sps);
+                     avctx->level = sps->level_idc;
++                    s->reorder_size = sps->num_reorder_frames;
+                 }
+-                s->reorder_size = sps->num_reorder_frames;
+             }
+             ff_h264_ps_uninit(&ps);
+             break;
+-- 
+2.46.0
+

@@ -1,0 +1,446 @@
+From 896b581eb5f1eaf36552657877f8aaaab3f5dfd8 Mon Sep 17 00:00:00 2001
+From: digitalLumberjack <digitallumberjack@gmail.com>
+Date: Tue, 8 Jul 2025 12:11:07 +0200
+Subject: [PATCH 18/28] crt: add retroarch geometry settings from alphanu1
+
+---
+ config.def.h                 |  2 ++
+ configuration.c              |  1 +
+ configuration.h              |  1 +
+ gfx/video_crt_switch.c       | 68 ++++++++++++++++++++++++++++++++----
+ gfx/video_crt_switch.h       |  5 ++-
+ gfx/video_driver.c           |  5 +--
+ gfx/video_driver.h           |  1 +
+ intl/msg_hash_en.h           |  6 +++-
+ intl/msg_hash_lbl.h          |  8 +++--
+ intl/msg_hash_us.h           | 10 ++++--
+ menu/cbs/menu_cbs_sublabel.c |  4 +++
+ menu/menu_displaylist.c      |  1 +
+ menu/menu_setting.c          | 28 +++++++++++----
+ msg_hash.h                   |  1 +
+ ui/drivers/qt/qt_options.cpp |  1 +
+ 15 files changed, 120 insertions(+), 22 deletions(-)
+
+diff --git a/config.def.h b/config.def.h
+index 5f9814a532..2c1a14ce05 100644
+--- a/config.def.h
++++ b/config.def.h
+@@ -167,6 +167,8 @@
+ 
+ #define DEFAULT_CRT_SWITCH_PORCH_ADJUST 0
+ 
++#define DEFAULT_CRT_SWITCH_VERTICAL_ADJUST 0
++
+ #define DEFAULT_CRT_SWITCH_HIRES_MENU true
+ 
+ #define DEFAULT_HISTORY_LIST_ENABLE true
+diff --git a/configuration.c b/configuration.c
+index 9174d9de21..a590355637 100644
+--- a/configuration.c
++++ b/configuration.c
+@@ -2683,6 +2683,7 @@ static struct config_int_setting *populate_settings_int(
+ 
+    SETTING_INT("crt_switch_center_adjust",       &settings->ints.crt_switch_center_adjust, false, DEFAULT_CRT_SWITCH_CENTER_ADJUST, false);
+    SETTING_INT("crt_switch_porch_adjust",        &settings->ints.crt_switch_porch_adjust, false, DEFAULT_CRT_SWITCH_PORCH_ADJUST, false);
++   SETTING_INT("crt_switch_vertical_adjust",     &settings->ints.crt_switch_vertical_adjust, false, DEFAULT_CRT_SWITCH_VERTICAL_ADJUST, false);
+ #ifdef HAVE_WINDOW_OFFSET
+    SETTING_INT("video_window_offset_x",          &settings->ints.video_window_offset_x, true, DEFAULT_WINDOW_OFFSET_X, false);
+    SETTING_INT("video_window_offset_y",          &settings->ints.video_window_offset_y, true, DEFAULT_WINDOW_OFFSET_Y, false);
+diff --git a/configuration.h b/configuration.h
+index 5d26768809..06d0c10393 100644
+--- a/configuration.h
++++ b/configuration.h
+@@ -114,6 +114,7 @@ typedef struct settings
+       int replay_slot;
+       int crt_switch_center_adjust;
+       int crt_switch_porch_adjust;
++      int crt_switch_vertical_adjust;
+ #ifdef HAVE_VULKAN
+       int vulkan_gpu_index;
+ #endif
+diff --git a/gfx/video_crt_switch.c b/gfx/video_crt_switch.c
+index f64add94fc..cf0c9612d4 100644
+--- a/gfx/video_crt_switch.c
++++ b/gfx/video_crt_switch.c
+@@ -46,6 +46,9 @@ static void crt_adjust_sr_ini(videocrt_switch_t *p_switch);
+ static bool ini_overrides_loaded = false;
+ static char core_name[NAME_MAX_LENGTH]; /* Same size as library_name on retroarch_data.h */
+ static char content_dir[DIR_MAX_LENGTH];
++static char _hSize[12];
++static char _hShift[12];
++static char _vShift[12];
+ 
+ #if defined(HAVE_VIDEOCORE) /* Need to add video core to SR2 */
+ #include "include/userland/interface/vmcs_host/vc_vchi_gencmd.h"
+@@ -56,8 +59,9 @@ static bool crt_check_for_changes(videocrt_switch_t *p_switch)
+ {
+    if (   (p_switch->ra_core_height != p_switch->ra_tmp_height)
+        || (p_switch->ra_core_width  != p_switch->ra_tmp_width)
+-       || (p_switch->center_adjust  != p_switch->tmp_center_adjust
+-       ||  p_switch->porch_adjust   != p_switch->tmp_porch_adjust)
++       || (p_switch->center_adjust  != p_switch->tmp_center_adjust)
++       || (p_switch->porch_adjust   != p_switch->tmp_porch_adjust)
++       || (p_switch->vert_adjust   != p_switch->tmp_vert_adjust)
+        || (p_switch->ra_core_hz     != p_switch->ra_tmp_core_hz)
+        || (p_switch->rotated        != p_switch->tmp_rotated))
+       return true;
+@@ -72,6 +76,7 @@ static void crt_store_temp_changes(videocrt_switch_t *p_switch)
+    p_switch->tmp_porch_adjust  = p_switch->porch_adjust;
+    p_switch->ra_tmp_core_hz    = p_switch->ra_core_hz;
+    p_switch->tmp_rotated       = p_switch->rotated;
++   p_switch->tmp_vert_adjust   = p_switch->vert_adjust;
+ }
+ 
+ static void crt_aspect_ratio_switch(
+@@ -328,6 +333,8 @@ static void switch_res_crt(
+    {
+       int ret;
+       int flags = 0;
++      int temph = 640;
++      int tempw = 480;
+       char current_core_name[NAME_MAX_LENGTH];
+       char current_content_dir[DIR_MAX_LENGTH];
+       double rr              = p_switch->ra_core_hz;
+@@ -336,6 +343,14 @@ static void switch_res_crt(
+       sr_set_option("interlace", allow_interlace);
+       sr_set_option("doublescan", "0");
+       const char *_core_name = (const char*)runloop_state_get_ptr()->system.info.library_name;
++      
++      const char* hSize = (const char*)_hSize;
++      const char* hShift = (const char*)_hShift;
++      const char* vShift = (const char*)_vShift;
++
++      if (p_switch->rotated)
++         flags |= SR_MODE_ROTATED;
++      
+       /* Check for core and content changes in case we need
+          to make any adjustments */
+       if (string_is_empty(_core_name))
+@@ -359,8 +374,37 @@ static void switch_res_crt(
+          p_switch->hh_core = false;
+       }
+ 
+-      if (p_switch->rotated)
+-         flags |= SR_MODE_ROTATED;
++      #if defined(_WIN32)
++      if (p_switch->center_adjust  != p_switch->tmp_center_adjust ||
++         p_switch->vert_adjust   != p_switch->tmp_vert_adjust)
++      {
++
++         if (w > 320 || h > 240)
++         {
++            temph = 240;
++            tempw = 320;
++            RARCH_LOG("[CRT]: SR temporary mode for windows geometry adjustment (320x240)\n");
++         }else{
++
++            RARCH_LOG("[CRT]: SR temporary mode for windows geometry adjustment (640x400)\n");
++         }
++   
++         ret = sr_add_mode(tempw, temph, rr, flags, &srm);
++
++         if (!ret)
++            RARCH_ERR("[CRT]: SR failed to add temporary mode for windows geometry adjustment\n");
++         else
++         {
++            ret = sr_set_mode(srm.id);
++            RARCH_LOG("[CRT]: SR added temporary mode for windows geometry adjustment\n");
++         }
++           
++      }
++      #endif
++
++      sr_set_option(SR_OPT_H_SIZE, hSize);
++      sr_set_option(SR_OPT_H_SHIFT, hShift);
++      sr_set_option(SR_OPT_V_SHIFT, vShift);
+ 
+       RARCH_DBG("%dx%d rotation: %d rotated: %d core rotation:%d\n", w, h, p_switch->rotated, flags & SR_MODE_ROTATED, retroarch_get_rotation());
+       ret = sr_add_mode(w, h, rr, flags, &srm);
+@@ -418,8 +462,11 @@ void crt_switch_res_core(
+       int crt_switch_porch_adjust,
+       int monitor_index, bool dynamic,
+       int super_width, bool hires_menu,
+-      unsigned video_aspect_ratio_idx)
++      unsigned video_aspect_ratio_idx,
++      int crt_switch_vert_adjust)
+ {
++   
++
+    if (height <= 4)
+    {
+       hz              = 60;
+@@ -432,7 +479,7 @@ void crt_switch_res_core(
+       {
+          native_width = 320;
+          height       = 240;
+-      }
++      } 
+       width           = native_width;
+    }
+ 
+@@ -440,6 +487,7 @@ void crt_switch_res_core(
+    {
+       p_switch->menu_active           = false;
+       p_switch->porch_adjust          = crt_switch_porch_adjust;
++      p_switch->vert_adjust           = crt_switch_vert_adjust;
+       p_switch->ra_core_height        = height;
+       p_switch->ra_core_hz            = hz;
+ 
+@@ -457,7 +505,13 @@ void crt_switch_res_core(
+ #if defined(HAVE_VIDEOCORE)
+          crt_rpi_switch(p_switch, width, height, hz, 0, native_width);
+ #else
+-
++         
++         sprintf(_hSize, "%lf", 1+
++            ((float)crt_switch_porch_adjust/100.0));
++         sprintf(_hShift, "%d",
++            crt_switch_center_adjust);
++         sprintf(_vShift, "%d",
++            crt_switch_vert_adjust);
+          if (p_switch->hh_core)
+          {
+             int corrected_width  = 320;
+diff --git a/gfx/video_crt_switch.h b/gfx/video_crt_switch.h
+index 1b354d80f8..0be6a1dac1 100644
+--- a/gfx/video_crt_switch.h
++++ b/gfx/video_crt_switch.h
+@@ -48,8 +48,10 @@ typedef struct videocrt_switch
+ 
+    int center_adjust;
+    int porch_adjust;
++   int vert_adjust;
+    int tmp_porch_adjust;
+    int tmp_center_adjust;
++   int tmp_vert_adjust;
+    int rtn;
+    int interlace;
+    int doublescan;
+@@ -85,7 +87,8 @@ void crt_switch_res_core(
+       bool dynamic,
+       int super_width,
+       bool hires_menu,
+-      unsigned video_aspect_ratio_idx);
++      unsigned video_aspect_ratio_idx,
++      int crt_switch_vert_adjust);
+ 
+ void crt_destroy_modes(videocrt_switch_t *p_switch);
+ 
+diff --git a/gfx/video_driver.c b/gfx/video_driver.c
+index 49855a39d0..88850c23e4 100644
+--- a/gfx/video_driver.c
++++ b/gfx/video_driver.c
+@@ -2843,6 +2843,7 @@ void video_driver_build_info(video_frame_info_t *video_info)
+    video_info->crt_switch_resolution_no_interlaced = settings->uints.crt_switch_resolution_no_interlaced;
+    video_info->crt_switch_center_adjust    = settings->ints.crt_switch_center_adjust;
+    video_info->crt_switch_porch_adjust     = settings->ints.crt_switch_porch_adjust;
++   video_info->crt_switch_vert_adjust      = settings->ints.crt_switch_vertical_adjust;
+    video_info->crt_switch_hires_menu       = settings->bools.crt_switch_hires_menu;
+    video_info->black_frame_insertion       = settings->uints.video_black_frame_insertion;
+    video_info->bfi_dark_frames             = settings->uints.video_bfi_dark_frames;
+@@ -4317,8 +4318,8 @@ void video_driver_frame(const void *data, unsigned width,
+             dynamic_super_width,
+             video_info.crt_switch_resolution_super,
+             video_info.crt_switch_hires_menu,
+-            config_get_ptr()->uints.video_aspect_ratio_idx
+-            );
++            config_get_ptr()->uints.video_aspect_ratio_idx,
++            video_info.crt_switch_vert_adjust);
+    }
+    else if (!video_info.crt_switch_resolution)
+ #endif
+diff --git a/gfx/video_driver.h b/gfx/video_driver.h
+index 7731869cf5..664f55de2a 100644
+--- a/gfx/video_driver.h
++++ b/gfx/video_driver.h
+@@ -395,6 +395,7 @@ typedef struct video_frame_info
+    int custom_vp_y;
+    int crt_switch_center_adjust;
+    int crt_switch_porch_adjust;
++   int crt_switch_vert_adjust;
+ 
+    unsigned hard_sync_frames;
+    unsigned runahead_frames;
+diff --git a/intl/msg_hash_en.h b/intl/msg_hash_en.h
+index 4a51481d9c..4358375552 100644
+--- a/intl/msg_hash_en.h
++++ b/intl/msg_hash_en.h
+@@ -231,12 +231,16 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_X_AXIS_CENTERING,
+-   "X-Axis Centring"
++   "Horizontal Centring"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_X_AXIS_CENTERING,
+    "Cycle through these options if the image is not centred properly on the display."
+    )
++MSG_HASH(
++   MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
++   "Vertical Centring"
++   )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_HIRES_MENU,
+    "Switch to high resolution mode-line for use with high-resolution menus when no content is loaded."
+diff --git a/intl/msg_hash_lbl.h b/intl/msg_hash_lbl.h
+index 1700fcdd0c..a3d7dd48c5 100644
+--- a/intl/msg_hash_lbl.h
++++ b/intl/msg_hash_lbl.h
+@@ -4152,11 +4152,15 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_CRT_SWITCH_X_AXIS_CENTERING,
+-	  "crt_switch_center_adjust"
++	  "crt_switch_horizontal_shift"
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_CRT_SWITCH_PORCH_ADJUST,
+-	  "crt_switch_porch_adjust"
++	  "crt_switch_horizontal_size"
++   )
++MSG_HASH(
++   MENU_ENUM_LABEL_CRT_SWITCH_VERTICAL_ADJUST,
++	  "crt_switch_vertical_size"
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VIDEO_ASPECT_RATIO,
+diff --git a/intl/msg_hash_us.h b/intl/msg_hash_us.h
+index a8a92051b6..d3cb7aea51 100644
+--- a/intl/msg_hash_us.h
++++ b/intl/msg_hash_us.h
+@@ -2291,7 +2291,7 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_X_AXIS_CENTERING,
+-   "X-Axis Centering"
++   "Horizontal Centering"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_X_AXIS_CENTERING,
+@@ -2299,11 +2299,15 @@ MSG_HASH(
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_PORCH_ADJUST,
+-   "Porch Adjust"
++   "Horizontal Size"
+    )
+ MSG_HASH(
+    MENU_ENUM_SUBLABEL_CRT_SWITCH_PORCH_ADJUST,
+-   "Cycle through these options to adjust the porch settings to change the image size."
++   "Cycle through these options to adjust the horizontal settings to change the image size."
++   )
++MSG_HASH(
++   MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
++   "Vertical Centring"
+    )
+ MSG_HASH(
+    MENU_ENUM_LABEL_VALUE_CRT_SWITCH_HIRES_MENU,
+diff --git a/menu/cbs/menu_cbs_sublabel.c b/menu/cbs/menu_cbs_sublabel.c
+index 68ca698f02..8c8dc951f9 100644
+--- a/menu/cbs/menu_cbs_sublabel.c
++++ b/menu/cbs/menu_cbs_sublabel.c
+@@ -251,6 +251,7 @@ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_hdr_expand_gamut,      MENU_ENUM_SUB
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_super,       MENU_ENUM_SUBLABEL_CRT_SWITCH_RESOLUTION_SUPER)
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_x_axis_centering,       MENU_ENUM_SUBLABEL_CRT_SWITCH_X_AXIS_CENTERING)
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_porch_adjust,       MENU_ENUM_SUBLABEL_CRT_SWITCH_PORCH_ADJUST)
++DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_vertical_adjust,       MENU_ENUM_SUBLABEL_CRT_SWITCH_VERTICAL_ADJUST)
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_use_custom_refresh_rate,       MENU_ENUM_SUBLABEL_CRT_SWITCH_RESOLUTION_USE_CUSTOM_REFRESH_RATE)
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_crt_switchres_hires_menu,       MENU_ENUM_SUBLABEL_CRT_SWITCH_HIRES_MENU)
+ DEFAULT_SUBLABEL_MACRO(action_bind_sublabel_driver_settings_list,             MENU_ENUM_SUBLABEL_DRIVER_SETTINGS)
+@@ -2523,6 +2524,9 @@ int menu_cbs_init_bind_sublabel(menu_file_list_cbs_t *cbs,
+          case MENU_ENUM_LABEL_CRT_SWITCH_PORCH_ADJUST:
+             BIND_ACTION_SUBLABEL(cbs, action_bind_sublabel_crt_switchres_porch_adjust);
+             break;
++         case MENU_ENUM_LABEL_CRT_SWITCH_VERTICAL_ADJUST:
++            BIND_ACTION_SUBLABEL(cbs, action_bind_sublabel_crt_switchres_vertical_adjust);
++            break;
+          case MENU_ENUM_LABEL_CRT_SWITCH_RESOLUTION_USE_CUSTOM_REFRESH_RATE:
+             BIND_ACTION_SUBLABEL(cbs, action_bind_sublabel_crt_switchres_use_custom_refresh_rate);
+             break;
+diff --git a/menu/menu_displaylist.c b/menu/menu_displaylist.c
+index 7f29cdfaf8..2f37b2c583 100644
+--- a/menu/menu_displaylist.c
++++ b/menu/menu_displaylist.c
+@@ -10017,6 +10017,7 @@ unsigned menu_displaylist_build_list(
+                {MENU_ENUM_LABEL_CRT_SWITCH_RESOLUTION_SUPER,                           PARSE_ONLY_UINT},
+                {MENU_ENUM_LABEL_CRT_SWITCH_X_AXIS_CENTERING,                           PARSE_ONLY_INT },
+                {MENU_ENUM_LABEL_CRT_SWITCH_PORCH_ADJUST,                               PARSE_ONLY_INT },
++               {MENU_ENUM_LABEL_CRT_SWITCH_VERTICAL_ADJUST,                            PARSE_ONLY_INT },
+                {MENU_ENUM_LABEL_CRT_SWITCH_RESOLUTION_USE_CUSTOM_REFRESH_RATE,         PARSE_ONLY_BOOL},
+                {MENU_ENUM_LABEL_CRT_SWITCH_HIRES_MENU,         PARSE_ONLY_BOOL},
+             };
+diff --git a/menu/menu_setting.c b/menu/menu_setting.c
+index 4d9a5b857f..225a8e08be 100644
+--- a/menu/menu_setting.c
++++ b/menu/menu_setting.c
+@@ -14157,11 +14157,11 @@ static bool setting_append_list(
+ 				  parent_group,
+ 				  general_write_handler,
+ 				  general_read_handler);
+-         (*list)[list_info->index - 1].ui_type       = ST_UI_TYPE_UINT_SPINBOX;
+-         (*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;
+-         (*list)[list_info->index - 1].offset_by     = -3;
++         /*(*list)[list_info->index - 1].ui_type       = ST_UI_TYPE_UINT_SPINBOX;*/
++         /*(*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;*/
++         (*list)[list_info->index - 1].offset_by     = 0;
+          SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
+-         menu_settings_list_current_add_range(list, list_info, -3, 4, 1.0, true, true);
++         menu_settings_list_current_add_range(list, list_info, -50, 50, 1.0, true, true);
+ 
+          CONFIG_INT(
+ 				  list, list_info,
+@@ -14174,8 +14174,24 @@ static bool setting_append_list(
+ 				  parent_group,
+ 				  general_write_handler,
+ 				  general_read_handler);
+-         (*list)[list_info->index - 1].ui_type       = ST_UI_TYPE_UINT_SPINBOX;
+-         (*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;
++         /*(*list)[list_info->index - 1].ui_type       = ST_UI_TYPE_UINT_SPINBOX;*/
++         /*(*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;*/
++         (*list)[list_info->index - 1].offset_by     = 0;
++         SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
++         menu_settings_list_current_add_range(list, list_info, -50, 100, 1.0, true, true);
++         CONFIG_INT(
++				  list, list_info,
++				  &settings->ints.crt_switch_vertical_adjust,
++				  MENU_ENUM_LABEL_CRT_SWITCH_VERTICAL_ADJUST,
++				  MENU_ENUM_LABEL_VALUE_CRT_SWITCH_VERTICAL_ADJUST,
++				  DEFAULT_CRT_SWITCH_VERTICAL_ADJUST,
++				  &group_info,
++				  &subgroup_info,
++				  parent_group,
++				  general_write_handler,
++				  general_read_handler);
++         /*(*list)[list_info->index - 1].ui_type       = ST_UI_TYPE_UINT_SPINBOX;*/
++         /*(*list)[list_info->index - 1].action_ok     = &setting_action_ok_uint;*/
+          (*list)[list_info->index - 1].offset_by     = 0;
+          SETTINGS_DATA_LIST_CURRENT_ADD_FLAGS(list, list_info, SD_FLAG_ADVANCED);
+          menu_settings_list_current_add_range(list, list_info, -20, 20, 1.0, true, true);
+diff --git a/msg_hash.h b/msg_hash.h
+index 0aea04997f..6a004c81a1 100644
+--- a/msg_hash.h
++++ b/msg_hash.h
+@@ -1401,6 +1401,7 @@ enum msg_hash_enums
+    MENU_LABEL(CRT_SWITCH_RESOLUTION_USE_CUSTOM_REFRESH_RATE),
+    MENU_LABEL(CRT_SWITCH_X_AXIS_CENTERING),
+    MENU_LABEL(CRT_SWITCH_PORCH_ADJUST),
++   MENU_LABEL(CRT_SWITCH_VERTICAL_ADJUST),
+    MENU_LABEL(VIDEO_FONT_ENABLE),
+    MENU_LABEL(VIDEO_FONT_PATH),
+    MENU_LABEL(VIDEO_FONT_SIZE),
+diff --git a/ui/drivers/qt/qt_options.cpp b/ui/drivers/qt/qt_options.cpp
+index 50f0754577..2c07dc730a 100644
+--- a/ui/drivers/qt/qt_options.cpp
++++ b/ui/drivers/qt/qt_options.cpp
+@@ -1574,6 +1574,7 @@ QWidget *CrtSwitchresPage::widget()
+    layout->add(menu_setting_find_enum(MENU_ENUM_LABEL_CRT_SWITCH_RESOLUTION));
+    layout->addRow(msg_hash_to_str(MENU_ENUM_LABEL_VALUE_CRT_SWITCH_RESOLUTION_SUPER), m_crtSuperResolutionCombo);
+    layout->add(menu_setting_find_enum(MENU_ENUM_LABEL_CRT_SWITCH_X_AXIS_CENTERING));
++   layout->add(menu_setting_find_enum(MENU_ENUM_LABEL_CRT_SWITCH_VERTICAL_ADJUST));
+    layout->add(menu_setting_find_enum(MENU_ENUM_LABEL_CRT_SWITCH_RESOLUTION_USE_CUSTOM_REFRESH_RATE));
+ 
+    connect(m_crtSuperResolutionCombo, SIGNAL(currentIndexChanged(int)), this, SLOT(onCrtSuperResolutionComboIndexChanged(int)));
+-- 
+2.51.0
+

@@ -1,0 +1,65 @@
+#!/bin/bash
+#
+# Auto connect bluetooth controllers
+#
+
+config_file_noshare="/boot/recalbox-backup.conf"
+config_file="/recalbox/share/system/recalbox.conf"
+systemsetting="recalbox_settings"
+if [ ! -f "$config_file" ]; then
+  systemsetting="recalbox_settings -source $config_file_noshare"
+fi
+
+
+handle_ertm() {
+  local modprobe_option
+  local ertm
+  ertm="$($systemsetting  -command load -key controllers.bluetooth.ertm -default 1)"
+  # handle ERTM activation (enhanced retransmission mode)
+  if [ "$ertm" = "0" ];then
+    modprobe_option="options bluetooth disable_ertm=Y"
+  else
+    modprobe_option="options bluetooth disable_ertm=N"
+  fi
+
+  if ! grep -q "$modprobe_option" /etc/modprobe.d/bluetooth.conf; then
+    mount -o remount,rw /
+    echo "$modprobe_option" > /etc/modprobe.d/bluetooth.conf
+    mount -o remount,ro /
+  fi
+}
+
+start_bluetoothd() {
+  local settings_version
+  settings_version="$($systemsetting -command load -key controllers.ps3.driver -default bluez)"
+  if [ "$settings_version" != "bluez" ]; then BLUETOOTHD_ARGS="--noplugin=sixaxis"; else BLUETOOTHD_ARGS="--noplugin=sixaxispair"; fi
+  start-stop-daemon -S -q -m -p /var/run/bluetoothd.pid  --exec /usr/libexec/bluetooth/bluetoothd -- $BLUETOOTHD_ARGS &
+}
+
+start_bluetooth_autopair() {
+  start-stop-daemon -S -q -m -p /var/run/bt-autopair.pid -b --exec /recalbox/scripts/bluetooth/autopair --
+}
+
+case "$1" in
+  start)
+    handle_ertm
+    enabled="$($systemsetting  -command load -key controllers.bluetooth.enabled -default 1)"
+    if [ "$enabled" = "1" ];then
+      start_bluetoothd
+      start_bluetooth_autopair
+    fi
+  ;;
+  stop)
+    start-stop-daemon -K -q -p /ver/run/bt-autopair.pid
+    start-stop-daemon -K -q -p /var/run/bluetoothd.pid
+  ;;
+  restart|reload)
+    "$0" stop
+    "$0" start
+  ;;
+  *)
+    echo "Usage: $0 {start|stop|restart}"
+    exit 1
+esac
+
+exit $?

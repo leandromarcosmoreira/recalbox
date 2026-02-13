@@ -1,0 +1,25 @@
+From ea39b0a48342129abf1107f32a563cc82eb1c913 Mon Sep 17 00:00:00 2001
+From: Bkg2k <bkg2k9@gmail.com>
+Date: Wed, 23 Feb 2022 09:49:27 +0100
+Subject: [PATCH 08/28] oga include fix
+
+---
+ gfx/drivers/oga_gfx.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/gfx/drivers/oga_gfx.c b/gfx/drivers/oga_gfx.c
+index 69fa7a75bb..67b555c097 100644
+--- a/gfx/drivers/oga_gfx.c
++++ b/gfx/drivers/oga_gfx.c
+@@ -21,7 +21,7 @@
+ 
+ #include <fcntl.h>
+ #include <rga/RgaApi.h>
+-#include <rga/RockchipRgaMacro.h>
++#include <rga/drmrga.h>
+ #include <xf86drm.h>
+ #include <xf86drmMode.h>
+ #include <drm/drm_fourcc.h>
+-- 
+2.51.0
+

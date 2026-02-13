@@ -1,0 +1,25 @@
+From 6c4dfe918412eb308d733a9f98920f9ab4be92b9 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 25 Mar 2024 18:25:47 +0000
+Subject: [PATCH 176/176] pi-util/ffconf: Fix --loop help text
+
+---
+ pi-util/ffconf.py | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/pi-util/ffconf.py b/pi-util/ffconf.py
+index 7024612006..26091f3c07 100755
+--- a/pi-util/ffconf.py
++++ b/pi-util/ffconf.py
+@@ -224,7 +224,7 @@ if __name__ == '__main__':
+     argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name; if directory given use <dir>/ffmpeg")
+     argp.add_argument("--valgrind", action='store_true', help="Run valgrind on tests")
+     argp.add_argument("--gen_yuv", action='store_true', help="Create yuv file (stored with log under /tmp)")
+-    argp.add_argument("--loop", default=0, type=int, help="Create yuv file (stored with log under /tmp)")
++    argp.add_argument("--loop", default=0, type=int, help="Loop n times, or until unexpected result")
+     args = argp.parse_args()
+ 
+     if not os.path.isdir(args.test_root):
+-- 
+2.46.0
+

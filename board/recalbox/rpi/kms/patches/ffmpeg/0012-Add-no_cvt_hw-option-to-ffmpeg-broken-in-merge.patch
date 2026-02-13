@@ -1,0 +1,47 @@
+From afdc10a76211dcc5cc8c8d7e154bf95b5ac8ef32 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 27 Apr 2021 19:30:36 +0100
+Subject: [PATCH 012/176] Add no_cvt_hw option to ffmpeg [broken in merge]
+
+---
+ fftools/ffmpeg.h     | 2 ++
+ fftools/ffmpeg_opt.c | 3 +++
+ 2 files changed, 5 insertions(+)
+
+diff --git a/fftools/ffmpeg.h b/fftools/ffmpeg.h
+index 0983d026cd..f9fdce78f3 100644
+--- a/fftools/ffmpeg.h
++++ b/fftools/ffmpeg.h
+@@ -666,6 +666,8 @@ extern enum VideoSyncMethod video_sync_method;
+ extern float frame_drop_threshold;
+ extern int do_benchmark;
+ extern int do_benchmark_all;
++extern int no_cvt_hw;
++extern int do_deinterlace;
+ extern int do_hex_dump;
+ extern int do_pkt_dump;
+ extern int copy_ts;
+diff --git a/fftools/ffmpeg_opt.c b/fftools/ffmpeg_opt.c
+index 304471dd03..5926007658 100644
+--- a/fftools/ffmpeg_opt.c
++++ b/fftools/ffmpeg_opt.c
+@@ -73,6 +73,7 @@ enum VideoSyncMethod video_sync_method = VSYNC_AUTO;
+ float frame_drop_threshold = 0;
+ int do_benchmark      = 0;
+ int do_benchmark_all  = 0;
++int no_cvt_hw         = 0;
+ int do_hex_dump       = 0;
+ int do_pkt_dump       = 0;
+ int copy_ts           = 0;
+@@ -1498,6 +1499,8 @@ const OptionDef options[] = {
+         "add timings for benchmarking" },
+     { "benchmark_all",  OPT_BOOL | OPT_EXPERT,                       { &do_benchmark_all },
+       "add timings for each task" },
++    { "no_cvt_hw",      OPT_BOOL | OPT_EXPERT,                       { &no_cvt_hw },
++      "do not auto-convert hw frames to sw" },
+     { "progress",       HAS_ARG | OPT_EXPERT,                        { .func_arg = opt_progress },
+       "write program-readable progress information", "url" },
+     { "stdin",          OPT_BOOL | OPT_EXPERT,                       { &stdin_interaction },
+-- 
+2.46.0
+

@@ -1,0 +1,11 @@
+--- libretro-ecwolf-b3fe0743d8dc0fe90b066bccc1567496a0a25a14/src/tmemory.h.orig	2024-08-05 23:18:49.446989769 +0200
++++ libretro-ecwolf-b3fe0743d8dc0fe90b066bccc1567496a0a25a14/src/tmemory.h	2024-08-05 23:17:59.017707126 +0200
+@@ -460,7 +460,7 @@
+ 		Reference();
+ 	}
+ 
+-	void Swap(const Self &other)
++	void Swap(Self &other)
+ 	{
+ 		T *oldptr = p;
+ 		TSharedPtrRef *oldref = r;

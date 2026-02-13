@@ -1,0 +1,116 @@
+From 97da9cb95bb60d812e2ff374b149ff583d6a7d5c Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Thu, 20 Apr 2023 11:48:25 +0000
+Subject: [PATCH 120/176] conf_native: Add install prefix variation
+
+(cherry picked from commit 73c3019b534cb8f4b4e4c21995653f6ce440086d)
+---
+ pi-util/BUILD.txt      | 32 ++++++++++++++++++++------------
+ pi-util/conf_native.sh | 14 ++++++++++++--
+ 2 files changed, 32 insertions(+), 14 deletions(-)
+
+diff --git a/pi-util/BUILD.txt b/pi-util/BUILD.txt
+index b050971f63..2b62d660c0 100644
+--- a/pi-util/BUILD.txt
++++ b/pi-util/BUILD.txt
+@@ -24,6 +24,8 @@ There are a few choices here
+          paths being confused and therefore running the wrong code,  Shared
+          is what is needed, in most cases, when building for use by other
+          programs.
++ --usr   Set install dir to /usr (i.e. system default) rather than in
++         <builddir>/install
+ 
+ So for a static build
+ ---------------------
+@@ -37,23 +39,29 @@ You can now run ffmpeg directly from where it was built
+ For a shared build
+ ------------------
+ 
+-$ pi-util/conf_native.sh
+-
+-You will normally want an install target if shared. Note that the script has
+-set this up to be generated in out/<builddir>/install, you don't have to worry
+-about overwriting your system libs.
++There are two choices here
+ 
++$ pi-util/conf_native.sh
+ $ make -j8 -C out/<builddir> install
+ 
+-You can now set LD_LIBRARY_PATH appropriately and run ffmpeg from where it was
+-built or install the image on the system - you have to be careful to get rid
+-of all other ffmpeg libs or confusion may result.  There is a little script
+-that wipes all other versions - obviously use with care!
++This sets the install prefix to <builddir>/install and is probably what you
++want if you don't want to overwrite the system files.
+ 
+-$ sudo pi-util/clean_usr_libs.sh
++You can now set LD_LIBRARY_PATH appropriately and run ffmpeg from where it was
++built. You can copy the contents of <build dir>/install to /usr and that mostly
++works. The only downside is that paths in pkgconfig end up being set to the
++install directory in your build directory which may be less than ideal when
++building other packages.
+ 
+-Then simply copying from the install to /usr works
++The alternative if you just want to replace the system libs is:
+ 
+-$ sudo cp -r out/<builddir>/install/* /usr
++$ pi-util/conf_native.sh --usr
++$ make -j8 -C out/<builddir>
++$ sudo pi-util/clean_usr_libs.sh
++$ sudo make -j8 -C out/<builddir> install
+ 
++The clean_usr_libs.sh step wipes any existing libs & includes (for all
++architectures) from the system which helps avoid confusion when running other
++progs as you can be sure you're not running old code which is unfortunately
++easy to do otherwise.
+ 
+diff --git a/pi-util/conf_native.sh b/pi-util/conf_native.sh
+index 0a7d230f1b..f0ed159594 100755
+--- a/pi-util/conf_native.sh
++++ b/pi-util/conf_native.sh
+@@ -9,6 +9,7 @@ RPI_KEEPS=""
+ 
+ NOSHARED=
+ MMAL=
++USR_PREFIX=
+ 
+ while [ "$1" != "" ] ; do
+     case $1 in
+@@ -18,8 +19,14 @@ while [ "$1" != "" ] ; do
+ 	--mmal)
+ 	    MMAL=1
+ 	    ;;
++	--usr)
++	    USR_PREFIX=/usr
++	    ;;
+ 	*)
+-	    echo "Usage $0: [--noshared] [--mmal]"
++	    echo "Usage $0: [--noshared] [--mmal] [--usr]"
++	    echo "  noshared  Build static libs and executable - good for testing"
++	    echo "  mmal      Build mmal decoders"
++	    echo "  usr       Set install prefix to /usr [default=<build-dir>/install]"
+ 	    exit 1
+ 	    ;;
+     esac
+@@ -82,7 +89,9 @@ else
+   OUT=$BUILDBASE/$B-$C-$V-shared-rel
+ fi
+ 
+-USR_PREFIX=$OUT/install
++if [ ! $USR_PREFIX ]; then
++  USR_PREFIX=$OUT/install
++fi
+ LIB_PREFIX=$USR_PREFIX/lib/$A
+ INC_PREFIX=$USR_PREFIX/include/$A
+ 
+@@ -113,6 +122,7 @@ $FFSRC/configure \
+  --extra-libs="$RPI_EXTRALIBS"\
+  --extra-version="rpi"
+ 
++echo "Configured into $OUT"
+ 
+ # gcc option for getting asm listing
+ # -Wa,-ahls
+-- 
+2.46.0
+

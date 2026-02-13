@@ -1,0 +1,28 @@
+From c201ddfdfbb1718f4efe986399696e34ade9fb93 Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 21 Mar 2023 14:20:05 +0000
+Subject: [PATCH 117/176] v4l2_m2m_dec: Fix config file for finding if decoder
+ enabled
+
+Fixes parsing of extradata for profile testing. 5.x changed where that
+info is defined.
+---
+ libavcodec/v4l2_m2m_dec.c | 2 +-
+ 1 file changed, 1 insertion(+), 1 deletion(-)
+
+diff --git a/libavcodec/v4l2_m2m_dec.c b/libavcodec/v4l2_m2m_dec.c
+index f40fa09d22..22bca386ff 100644
+--- a/libavcodec/v4l2_m2m_dec.c
++++ b/libavcodec/v4l2_m2m_dec.c
+@@ -21,7 +21,7 @@
+  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
+  */
+ 
+-#include "config.h"
++#include "config_components.h"
+ 
+ #include <linux/videodev2.h>
+ #include <sys/ioctl.h>
+-- 
+2.46.0
+

@@ -1,0 +1,132 @@
+//
+// Created by bkg2k on 11/01/2021.
+//
+// As part of the RECALBOX Project
+// http://www.recalbox.com
+//
+#pragma once
+
+#include "guis/menus/base/Menu.h"
+#include "ResolutionAdapter.h"
+#include "hardware/Case.h"
+#include "hardware/Overclocking.h"
+
+// Forward declaration
+class SystemManager;
+class SystemData;
+
+class MenuAdvancedSettings : public Menu
+                           , private ISingleSelectorChanged<Overclocking::Overclock>
+                           , private ISwitchChanged
+                           , private ISubMenuSelected
+                           , private ISingleSelectorChanged<String>
+{
+  public:
+    /*!
+     * @brief Default constructor
+     * @param window Global window
+     */
+    explicit MenuAdvancedSettings(WindowManager& window, SystemManager& systemManager);
+
+    //! Destructor
+    ~MenuAdvancedSettings() override;
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+  private:
+    enum class Components
+    {
+      DebugLogs,
+      OverclockList,
+      BootSubMenu,
+      VirtualSubMenu,
+      ResolutionSubMenu,
+      AdvancedSubMenu,
+      KodiSubMenu,
+      Cases,
+      SecuritySubMenu,
+      ShowFPS,
+      CrtSubMenu,
+      Manager,
+      FactoryReset,
+      EepromUpdate,
+      UserScripts,
+    };
+
+    static constexpr const char* sOverclockBaseFolder = "/recalbox/system/configs/overclocking";
+    static constexpr const char* sOverclockFile = "/boot/recalbox-oc-config.txt";
+
+    //! Overclocking list
+    Overclocking mOverclocking;
+
+    //! System Manager
+    SystemManager& mSystemManager;
+
+    // Resolution Adapter
+    ResolutionAdapter mResolutionAdapter;
+
+    //! Default overclock value
+    Overclocking mDefaultOverclock;
+    //! Original overclock value
+    String mOriginalOverclock;
+    //! Last overclock hazardous?
+    bool mLastHazardous;
+    //! Is there at least a valid O/C?
+    bool mValidOverclock;
+
+    //! Overclock
+    ItemSelector<Overclocking>* mOverclock;
+
+    //! Get O/C list for the current board
+    static OverclockList AvailableOverclocks();
+
+    //! Get O/C List
+    SelectorEntry<Overclocking>::List GetOverclockEntries();
+
+    //! Get current O/C
+    Overclocking GetCurrentOC();
+
+    //! Reset overclock
+    void ResetOverclock();
+
+    //! Get supported cases List
+    static SelectorEntry<String>::List GetCasesEntries();
+
+    //! Reset Factory requested Level 1
+    void ResetFactory();
+
+    //! Reset Factory requested Level 2
+    static void ResetFactoryReally(WindowManager* This);
+
+    //! Do Reset Factory
+    static void DoResetFactory();
+
+    /*
+     * IOptionListComponent<Overclocking> implementation
+     */
+
+    void MenuSingleChanged(ItemSelectorBase<Overclocking>& item, int id, int index, const Overclocking& value) override;
+
+    //! Case component management
+    void MenuSingleChanged(ItemSelectorBase<String>& item, int id, int index, const String& value) override;
+
+    /*
+     * ISwitchChanged implementation
+     */
+
+    void MenuSwitchChanged(const ItemSwitch& item, bool& status, int id) override;
+
+    /*
+     * ISubMenuSelected implementation
+     */
+
+    void SubMenuSelected(const ItemSubMenu& item, int id) override;
+
+    void EepromUpdate();
+
+    String ExtractVersion(String cmdResult, String updateType);
+};
+
+
+

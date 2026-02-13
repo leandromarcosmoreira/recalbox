@@ -1,0 +1,17 @@
+--- amiberry-v4.1.6/src/floppybridge/CommonBridgeTemplate.h.orig	2024-08-03 22:59:42.587288549 +0200
++++ amiberry-v4.1.6/src/floppybridge/CommonBridgeTemplate.h	2024-08-03 23:00:10.683569032 +0200
+@@ -38,6 +38,7 @@
+ #include <queue>
+ #include <mutex>
+ #include <condition_variable>
++#include <string>
+ #include "floppybridge_abstract.h"
+ #include "RotationExtractor.h"
+ 
+@@ -445,4 +446,4 @@
+ 	virtual bool resetDrive(int trackNumber) override final;
+ };
+ 
+-#endif
+\ Pas de fin de ligne à la fin du fichier
++#endif

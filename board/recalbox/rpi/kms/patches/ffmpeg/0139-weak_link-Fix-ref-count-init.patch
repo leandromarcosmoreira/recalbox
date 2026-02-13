@@ -1,0 +1,25 @@
+From 5b69be0284aa783b2cbe81883b958c9635112a6d Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 24 Jul 2023 16:39:06 +0100
+Subject: [PATCH 139/176] weak_link: Fix ref count init
+
+(cherry picked from commit d6de45b15a0c96bfdc96bbc441963a60945e5eba)
+---
+ libavcodec/weak_link.c | 1 +
+ 1 file changed, 1 insertion(+)
+
+diff --git a/libavcodec/weak_link.c b/libavcodec/weak_link.c
+index f234a985b9..5a79e89ed7 100644
+--- a/libavcodec/weak_link.c
++++ b/libavcodec/weak_link.c
+@@ -19,6 +19,7 @@ struct ff_weak_link_master * ff_weak_link_new(void * p)
+     struct ff_weak_link_master * w = malloc(sizeof(*w));
+     if (!w)
+         return NULL;
++    atomic_init(&w->ref_count, 0);
+     w->ptr = p;
+     if (pthread_rwlock_init(&w->lock, NULL)) {
+         free(w);
+-- 
+2.46.0
+

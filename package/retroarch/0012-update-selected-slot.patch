@@ -1,0 +1,73 @@
+From 80c6056312ab3327c8adf34c68d23f4f70e1e820 Mon Sep 17 00:00:00 2001
+From: gugueU <gugue_u@hotmail.com>
+Date: Wed, 7 Jun 2023 17:07:29 +0200
+Subject: [PATCH 12/28] update selected slot
+
+---
+ command.c   | 7 +++++--
+ retroarch.c | 5 ++++-
+ runloop.c   | 7 ++++---
+ 3 files changed, 13 insertions(+), 6 deletions(-)
+
+diff --git a/command.c b/command.c
+index 009b1867b8..dc4da8c870 100644
+--- a/command.c
++++ b/command.c
+@@ -1404,8 +1404,11 @@ bool command_event_load_entry_state(settings_t *settings)
+          entry_state_path, ret ? "succeeded" : "failed"
+          );
+ 
+-   if (ret)
+-      configuration_set_int(settings, settings->ints.state_slot, runloop_st->entry_state_slot);
++  if (ret)
++  {
++      int slot = runloop_st->entry_state_slot;
++      configuration_set_int(settings, settings->ints.state_slot, slot == 9999 ? 0 : slot);
++  }
+ 
+    return ret;
+ }
+diff --git a/retroarch.c b/retroarch.c
+index da45a6876f..9ec6c8dbad 100644
+--- a/retroarch.c
++++ b/retroarch.c
+@@ -7493,7 +7493,10 @@ static bool retroarch_parse_input_and_config(
+                   int16_t entry_state_slot = (unsigned)strtoul(optarg, &endptr, 0);
+ 
+                   if (entry_state_slot > -1 && string_is_empty(endptr))
+-                     runloop_st->entry_state_slot = entry_state_slot;
++                    if(entry_state_slot == 0)
++                      runloop_st->entry_state_slot = 9999;
++                    else
++                      runloop_st->entry_state_slot = entry_state_slot;
+                   else
+                      RARCH_WARN("[State]: --entryslot argument \"%s\" is not a valid "
+                         "entry state slot index. Ignoring.\n", optarg);
+diff --git a/runloop.c b/runloop.c
+index fb36f758c9..5a7914b03b 100644
+--- a/runloop.c
++++ b/runloop.c
+@@ -7391,7 +7391,6 @@ bool runloop_get_replay_path(char *s, size_t len, int slot)
+ 
+ bool runloop_get_entry_state_path(char *s, size_t len, int slot)
+ {
+-   size_t _len;
+    runloop_state_t *runloop_st = &runloop_state;
+    const char *name_savestate  = NULL;
+ 
+@@ -7402,8 +7401,10 @@ bool runloop_get_entry_state_path(char *s, size_t len, int slot)
+    if (string_is_empty(name_savestate))
+       return false;
+ 
+-   _len = strlcpy(s, name_savestate, len);
+-   snprintf(s + _len, len - _len, "%d.entry", slot);
++   if (slot == 9999)
++     snprintf(s, len, "%s", name_savestate);
++   else
++     snprintf(s, len, "%s%d", name_savestate, slot);
+ 
+    return true;
+ }
+-- 
+2.51.0
+

@@ -1,0 +1,26 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index 64d8803..78aaf0f 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -68,6 +68,7 @@ option(APPLE_BREAKPAD "macOS: Build breakpad client and dump symbols" OFF)
+ option(ENABLE_GDB_SERVER "Build with GDB debugging support" OFF)
+ option(ENABLE_DC_PROFILER "Build with support for target machine (SH4) profiler" OFF)
+ option(ENABLE_FC_PROFILER "Build with support for host app (Flycast) profiler" OFF)
++option(PAGESIZE16K "pagesize 16K" OFF)
+ 
+ if(IOS AND NOT LIBRETRO)
+ 	set(USE_VULKAN OFF CACHE BOOL "Force vulkan off" FORCE)
+@@ -238,9 +239,10 @@ target_compile_definitions(${PROJECT_NAME} PRIVATE
+ 		$<$<BOOL:${WINDOWS_STORE}>:NOCRYPT>
+ 		$<$<OR:$<BOOL:${MINGW}>,$<BOOL:${MSVC}>>:_USE_MATH_DEFINES>)
+ 
+-if(UNIX AND NOT ANDROID AND NOT APPLE)
+-	execute_process(COMMAND getconf PAGESIZE OUTPUT_VARIABLE PAGE_SIZE OUTPUT_STRIP_TRAILING_WHITESPACE)
+-	target_compile_definitions(${PROJECT_NAME} PRIVATE PAGE_SIZE=${PAGE_SIZE})
++if (PAGESIZE16K)
++	target_compile_definitions(${PROJECT_NAME} PRIVATE PAGE_SIZE=16384)
++else()
++	target_compile_definitions(${PROJECT_NAME} PRIVATE PAGE_SIZE=4096)
+ endif()
+ 
+ if(NOT "${SENTRY_UPLOAD_URL}" STREQUAL "")

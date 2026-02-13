@@ -1,0 +1,32 @@
+From 351123162c0b224f79f845660ee6ee497694228e Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Mon, 24 Jul 2023 17:28:06 +0100
+Subject: [PATCH 140/176] v4l2_m2m: Check fd before attempting to close (fix
+ valgrind warn)
+
+(cherry picked from commit befa42878d054d1fba53d5da14406faaae224daf)
+---
+ libavcodec/v4l2_m2m.c | 7 +++++--
+ 1 file changed, 5 insertions(+), 2 deletions(-)
+
+diff --git a/libavcodec/v4l2_m2m.c b/libavcodec/v4l2_m2m.c
+index 28d9ed4988..238ceea235 100644
+--- a/libavcodec/v4l2_m2m.c
++++ b/libavcodec/v4l2_m2m.c
+@@ -340,8 +340,11 @@ int ff_v4l2_m2m_codec_end(V4L2m2mPriv *priv)
+     ff_v4l2_context_release(&s->output);
+ 
+     dmabufs_ctl_unref(&s->db_ctl);
+-    close(s->fd);
+-    s->fd = -1;
++
++    if (s->fd != -1) {
++        close(s->fd);
++        s->fd = -1;
++    }
+ 
+     s->self_ref = NULL;
+     // This is only called on avctx close so after this point we don't have that
+-- 
+2.46.0
+

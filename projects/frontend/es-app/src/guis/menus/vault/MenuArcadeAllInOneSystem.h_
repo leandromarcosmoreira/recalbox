@@ -1,0 +1,31 @@
+#pragma once
+
+#include "guis/menus/base/Menu.h"
+
+class MenuArcadeAllInOneSystem : public Menu
+                                  , private ISwitchChanged
+{
+  public:
+    //! Constructor
+    explicit MenuArcadeAllInOneSystem(WindowManager& window, SystemManager& systemManager);
+
+    //! Build menu items
+    void BuildMenuItems() final;
+
+  private:
+    enum class Components
+    {
+      ArcadeOnOff,
+      IncludeNeogeo,
+      HideOriginals,
+    };
+
+    //! System manager reference
+    SystemManager& mSystemManager;
+
+    /*
+     * ISwitchChanged implementation
+     */
+
+    void MenuSwitchChanged(const ItemSwitch& item, bool& status, int id) override;
+};

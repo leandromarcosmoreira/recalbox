@@ -1,0 +1,468 @@
+#include "MenuGamelistOptions.h"
+#include "guis/GuiSaveStates.h"
+#include "guis/GuiDownloader.h"
+#include "views/gamelist/ArcadeGameListView.h"
+#include "guis/menus/vault/MenuArcade.h"
+#include "guis/menus/MenuProvider.h"
+#include "guis/GuiSearch.h"
+#include "MainRunner.h"
+#include "games/GameFilesUtils.h"
+#include "guis/MenuMessages.h"
+#include "guis/GuiMsgBox.h"
+#include "MenuMain.h"
+#include "MenuGamelistGameOptions.h"
+#include "MenuGamelistGameDeleteOptions.h"
+#include "scraping/ScraperSeamless.h"
+#include "guis/menus/base/ItemSubMenu.h"
+#include "MenuProvider.h"
+#include "MenuSearchLicenceSelector.h"
+#include <guis/GuiSearch.h>
+#include <MainRunner.h>
+#include <games/GameFilesUtils.h>
+#include <guis/MenuMessages.h>
+#include <guis/GuiMsgBox.h>
+#include <guis/menus/MenuMain.h>
+#include <guis/menus/MenuGamelistGameOptions.h>
+#include <guis/menus/MenuGamelistGameDeleteOptions.h>
+#include <scraping/ScraperSeamless.h>
+#include <guis/menus/base/ItemSubMenu.h>
+
+MenuGamelistOptions::MenuGamelistOptions(WindowManager& window, SystemData& system, SystemManager& systemManager, IArcadeGamelistInterface* arcadeInterface, const IGlobalVariableResolver& resolver)
+  :	Menu(window, InheritableContext(), _("OPTIONS"))
+  , mResolver(resolver)
+  , mSystem(system)
+  , mSystemManager(systemManager)
+  , mGamelist(*ViewController::Instance().GetOrCreateGamelistView(&system))
+  , mArcade(arcadeInterface)
+{
+}
+
+void MenuGamelistOptions::BuildMenuItems()
+{
+  // edit game metadata
+  bool nomenu = mConf.GetMenuType() == RecalboxConf::Menu::None;
+  bool bartop = mConf.GetMenuType() == RecalboxConf::Menu::Bartop;
+  if (!nomenu && !bartop)
+  {
+    String editTitle;
+    const FileData* file = mGamelist.getCursor();
+    bool isGame = mGamelist.getCursor()->IsGame();
+    bool isFolder = mGamelist.getCursor()->IsFolder();
+    if (isGame)  editTitle = file->TopAncestor().ReadOnly() ? _("NON EDITABLE GAME"): _("EDIT GAME");
+    else if (isFolder) editTitle = _("EDIT FOLDER");
+    if (!editTitle.empty()) mGame = AddSubMenu(editTitle, (int) Components::MetaData, this, _(MENUMESSAGE_GAMELISTOPTION_EDIT_METADATA_MSG));
+
+    if (isGame || isFolder)
+    {
+      if (!mSystem.IsVirtual() && isGame && !mGamelist.getCursor()->TopAncestor().ReadOnly() &&
+          !mSystem.IsScreenshots())
+      {
+        String text = _("DELETE GAME %s").Replace("%s", mGamelist.getCursor()->Name().ToUpperCaseUTF8());
+        AddSubMenu(text, (int) Components::Delete, this, _(MENUMESSAGE_GAMELISTOPTION_DELETE_GAME_MSG));
+      }
+
+      if (mSystem.IsScreenshots())
+      {
+        AddSubMenu(_("DELETE SCREENSHOT"), (int) Components::DeleteScreeshot, this, _(MENUMESSAGE_GAMELISTOPTION_DELETE_SCREENSHOT_MSG));
+      }
+
+      //if (mConf.GetAutorunEnabled() && isGame)
+      //{
+      //  AddSwitch(_("BOOT ON THIS GAME"), mGamelist.getCursor()->RomPath().ToString() == mConf.GetAutorunGamePath(), (int) Components::AutorunGame, this, _(MENUMESSAGE_GAMELISTOPTION_BOOT_GAME_MSG));
+      //}
+
+      //if (!GameFilesUtils::GetGameSaveStateFiles(*mGamelist.getCursor()).empty())
+      //  AddSubMenu(_("SAVE STATES"), (int) Components::SaveStates, this, _(MENUMESSAGE_GAMELISTOPTION_SAVE_STATES_MSG));
+    }
+  }
+
+  RefreshGameMenuContext();
+
+  // Downloader available?
+ // if (DownloaderManager::HasDownloader(mSystem))
+ //   AddSubMenu(_("DOWNLOAD GAMES"),  (int)Components::Download, this, _(MENUMESSAGE_GAMELISTOPTION_DOWNLOAD_GAMES_MSG));
+
+  // Jump to letter
+  //AddList<unsigned int>(_("JUMP TO LETTER"), (int)Components::JumpToLetter, this, GetLetterEntries(), String::UpperUnicode(mGamelist.getCursor()->Name().ReadFirstUTF8()), 0, _(MENUMESSAGE_GAMELISTOPTION_JUMP_LETTER_MSG));
+
+  // open search wheel for this system
+  //if (!mSystem.IsFavorite())
+  //  AddSubMenu(_("SEARCH GAMES HERE"),  (int)Components::Search, this, _(MENUMESSAGE_GAMELISTOPTION_SEARCH_GAMES_MSG));
+
+  // search others version of current game
+  if(!mGamelist.getCursor()->Metadata().Aliases().empty())
+    AddSubMenu(_("SEARCH OTHER VERSIONS"), (int) Components::SearchOtherVersions, this, _("MENUMESSAGE_GAMELISTOPTION_SEARCH_OTHER_VERSIONS_MSG"));
+
+  // search others game with same licence
+  if(!mGamelist.getCursor()->Metadata().Licences().empty())
+    AddSubMenu(_("SEARCH BY LICENCE"), (int) Components::SearchByLicence, this, _("MENUMESSAGE_GAMELISTOPTION_SEARCH_BY_LICENCE_MSG"));
+
+  // Sorting
+  //if (!mSystem.IsSelfSorted())
+  //  mListSort = AddList<FileSorts::Sorts>(_("SORT GAMES BY"), (int)Components::Sorts, this, GetSortEntries(), mConf.GetSystemSort(mSystem), FileSorts::Sorts::FileNameAscending, _(MENUMESSAGE_GAMELISTOPTION_SORT_GAMES_MSG));
+
+  // Global arcade option available on any arcade system, true or virtual
+  //if (mSystem.IsArcade())
+  //  AddSubMenu(_("ARCADE SETTINGS"), (int)Components::ArcadeOptions, this, _(MENUMESSAGE_ARCADE_HELP_MSG));
+
+  // Decorations
+  //AddMultiList(_("DECORATIONS"), (int)Components::Decorations, this, GetDecorationEntries(), _(MENUMESSAGE_GAMELISTOPTION_DECORATIONS_MSG));
+
+  // Region filter
+  //AddList<Regions::GameRegions>(_("HIGHLIGHT GAMES OF REGION..."), (int)Components::Regions, this, GetRegionEntries(), Regions::Clamp(mConf.GetSystemRegionFilter(mSystem)), Regions::GameRegions::Unknown, _(MENUMESSAGE_GAMELISTOPTION_FILTER_REGION_MSG));
+
+  // flat folders
+  if (!mSystem.IsFavorite())
+  {
+    //if (!mSystem.IsAlwaysFlat())
+    //  AddSwitch(_("SHOW FOLDER CONTENTS "), mConf.GetSystemFlatFolders(mSystem), (int) Components::FlatFolders, this, _(MENUMESSAGE_GAMELISTOPTION_SHOW_FOLDER_CONTENT_MSG));
+
+    // favorites only
+    //AddSwitch(_("SHOW ONLY FAVORITES"), mConf.GetFavoritesOnly(), (int) Components::FavoritesOnly, this, _(MENUMESSAGE_UI_FAVORITES_ONLY_MSG));
+    // favorites first
+    //if (!mSystem.IsArcade())
+    //  AddSwitch(_("FAVORITES FIRST"), mConf.GetFavoritesFirst(), (int) Components::FavoritesFirst, this, _(MENUMESSAGE_UI_FAVORITES_FIRST_MSG));
+  }
+  // update game list
+  //if (!mSystem.IsFavorite())
+  //  AddSubMenu(_("UPDATE GAMES LISTS"), (int)Components::UpdateGamelist, this, _(MENUMESSAGE_UI_UPDATE_GAMELIST_HELP_MSG));
+
+  if (!nomenu)
+  {
+    // Main menu
+    //AddSubMenu(_("MAIN MENU"), (int)Components::MainMenu, this, _(MENUMESSAGE_GAMELISTOPTION_MAIN_MENU_MSG));
+    // QUIT
+    //AddSubMenu(_("QUIT"), (int)Components::Quit, this, _(MENUMESSAGE_QUIT_HELP_MSG));
+  }
+}
+
+MenuGamelistOptions::~MenuGamelistOptions()
+{
+  // require list refresh
+	mGamelist.onChanged(ISimpleGameListView::Change::Update);
+}
+
+void MenuGamelistOptions::RefreshGameMenuContext()
+{
+  if (!mGame) return;
+
+  const FileData* file = mGamelist.getCursor();
+  if ((file == nullptr) || file->IsEmpty()) mGame->ChangeLabel(_("NO GAME"));
+  else if (file->TopAncestor().ReadOnly())  mGame->ChangeLabel(_("NON EDITABLE GAME"));
+  else if (file->IsGame())
+  {
+    String text = _("EDIT GAME %s").Replace("%s", file->Name().ToUpperCaseUTF8());
+    mGame->ChangeLabel(text);
+  }
+  else if (file->IsFolder())
+  {
+    String text = _("EDIT FOLDER %s").Replace("%s", file->Name().ToUpperCaseUTF8());
+    mGame->ChangeLabel(text);
+  }
+}
+
+SelectorEntry<Regions::GameRegions>::List MenuGamelistOptions::GetRegionEntries()
+{
+  SelectorEntry<Regions::GameRegions>::List list;
+  for(auto region : mGamelist.AvailableRegionsInGames())
+  {
+    String regionName = (region == Regions::GameRegions::Unknown) ? _("NONE") : Regions::RegionFullName(region);
+    list.push_back({ regionName, region });
+  }
+  return list;
+}
+
+SelectorEntry<FileSorts::Sorts>::List MenuGamelistOptions::GetSortEntries()
+{
+  SelectorEntry<FileSorts::Sorts>::List list;
+
+  // Get & check sort id
+  FileSorts::SortSets set = mSystem.IsVirtual() ? FileSorts::SortSets::MultiSystem :
+                            mSystem.Descriptor().IsArcade() ? FileSorts::SortSets::Arcade :
+                            FileSorts::SortSets::SingleSystem;
+  const Array<FileSorts::Sorts>& availableSorts = FileSorts::AvailableSorts(set);
+
+  list.reserve(availableSorts.Count());
+  FileSorts& sorts = FileSorts::Instance();
+  for(FileSorts::Sorts sort : availableSorts)
+    list.push_back({ sorts.Name(sort), sort });
+
+  return list;
+}
+
+SelectorEntry<RecalboxConf::GamelistDecoration>::List MenuGamelistOptions::GetDecorationEntries()
+{
+  SelectorEntry<RecalboxConf::GamelistDecoration>::List list;
+  RecalboxConf::GamelistDecoration decorations = mConf.GetSystemGamelistDecoration(*ViewController::Instance().CurrentSystem());
+  list.push_back({ "Region flags", RecalboxConf::GamelistDecoration::Regions, hasFlag(decorations, RecalboxConf::GamelistDecoration::Regions) });
+  list.push_back({ "Players", RecalboxConf::GamelistDecoration::Players, hasFlag(decorations, RecalboxConf::GamelistDecoration::Players) });
+  list.push_back({ "Genres", RecalboxConf::GamelistDecoration::Genre, hasFlag(decorations, RecalboxConf::GamelistDecoration::Genre) });
+  return list;
+}
+
+/*void MenuGamelistOptions::Delete(FileData& game)
+{
+  (void)game.RomPath().Delete();
+  if (game.Parent() != nullptr)
+  {
+    game.Parent()->RemoveChild(&game);
+    game.System().RemoveArcadeReference(game);
+  }
+
+  mSystemManager.UpdateSystemsOnGameChange(&game, MetadataType::None, true);
+}
+
+void MenuGamelistOptions::Modified(ISimpleGameListView* gamelistview, FileData& game)
+{
+  gamelistview->refreshList();
+  gamelistview->setCursor(&game);
+}*/
+
+void MenuGamelistOptions::MenuSingleChanged(ItemSelectorBase<unsigned int>& item, int id, int index, const unsigned int& value)
+{
+  (void)item;
+  (void)index;
+  if ((Components)id == Components::JumpToLetter)
+  {
+    FileSorts::Sorts sortId = mListSort->SelectedValue();
+
+    // if sort is not alpha, need to force an alpha
+    if (sortId != FileSorts::Sorts::FileNameAscending && sortId != FileSorts::Sorts::FileNameDescending
+    && sortId != FileSorts::Sorts::AliasAscending && sortId != FileSorts::Sorts::AliasDescending)
+    {
+      sortId = FileSorts::Sorts::FileNameAscending;
+      mListSort->SetSelectedItemValue(sortId, false);
+      // apply sort
+      if (sortId != (FileSorts::Sorts) mConf.GetSystemSort(mSystem))
+      {
+        mConf.SetSystemSort(mSystem, sortId);
+        mGamelist.onChanged(ISimpleGameListView::Change::Resort);
+      }
+    }
+
+    mGamelist.JumpToLetter(value);
+    RefreshGameMenuContext();
+  }
+}
+
+void MenuGamelistOptions::MenuSingleChanged(ItemSelectorBase<FileSorts::Sorts>& item, int id, int index, const FileSorts::Sorts& value)
+{
+  (void)item;
+  (void)index;
+  if ((Components)id == Components::Sorts)
+  {
+    mConf.SetSystemSort(mSystem, value).Save();
+    mGamelist.onChanged(ISimpleGameListView::Change::Resort);
+
+    mGamelist.refreshList();
+    RefreshGameMenuContext();
+  }
+}
+
+void MenuGamelistOptions::MenuSingleChanged(ItemSelectorBase<Regions::GameRegions>& item, int id, int index, const Regions::GameRegions& value)
+{
+  (void)item;
+  (void)index;
+  if ((Components)id == Components::Regions)
+    mConf.SetSystemRegionFilter(mSystem, value).Save();
+}
+
+void MenuGamelistOptions::SubMenuSelected(const ItemSubMenu& item, int id)
+{
+  (void)item;
+  switch((Components)id)
+  {
+    case Components::Download:
+    {
+      mWindow.pushGui(new GuiDownloader(mWindow, mSystem, mSystemManager));
+      break;
+    }
+    case Components::MetaData:
+    {
+      FileData* file = mGamelist.getCursor();
+      if ((file != nullptr) && (!file->IsEmpty()) && (!file->TopAncestor().ReadOnly()))
+        mWindow.pushGui(
+          new MenuGamelistGameOptions(mWindow, mGamelist, mSystemManager, mSystem, *mGamelist.getCursor()));
+      break;
+    }
+    case Components::MainMenu: MenuProvider::ShowMenu(MenuContainerType::Main, InheritableContext()); Close(); break;
+    case Components::Quit: MenuProvider::ShowMenu(MenuContainerType::Quit, InheritableContext()); break;
+    case Components::UpdateGamelist:
+    {
+      mWindow.pushGui(new GuiMsgBox(mWindow, _("REALLY UPDATE GAMES LISTS ?"), _("YES"), []
+      { MainRunner::RequestQuit(MainRunner::ExitState::Relaunch, true); }, _("NO"), nullptr));
+      break;
+    }
+    case Components::Delete:
+    {
+      FileData* game = mGamelist.getCursor();
+      if (ScraperSeamless::Instance().IsScraping(game))
+        mWindow.pushGui(
+          new GuiMsgBox(mWindow, _("This game is currently updating its metadata. Retry in a few seconds."), _("OK"),
+                        nullptr));
+      else mWindow.pushGui(new MenuGamelistGameDeleteOptions(mWindow, mGamelist, *game));
+      break;
+    }
+    case Components::DeleteScreeshot:
+    {
+      mWindow.pushGui(new GuiMsgBox(mWindow, _("DELETE SCREENSHOT, CONFIRM?"), _("YES"), [this]
+      {
+        (void) mGamelist.getCursor()->RomPath().Delete();
+        RootFolderData::DeleteChild(mGamelist.getCursor());
+        mSystemManager.UpdateSystemsOnGameChange(mGamelist.getCursor(), MetadataType::None, true);
+        mWindow.CloseAll();
+      }, _("NO"), {}));
+      break;
+    }
+    case Components::SaveStates:
+    {
+      FileData* game = mGamelist.getCursor();
+      mWindow.pushGui(new GuiSaveStates(mWindow, mSystemManager, *game, nullptr, true));
+      break;
+    }
+    case Components::Search:
+    {
+      mWindow.pushGui(new GuiSearch(mWindow, mSystemManager, &mGamelist.System()));
+      break;
+    }
+    case Components::ArcadeOptions:
+    {
+      mWindow.pushGui(new MenuArcade(mWindow, mSystemManager, mArcade));
+      break;
+    }
+    case Components::SearchOtherVersions:
+    {
+      String alias = mGamelist.getCursor()->Metadata().MainAliasOrName();
+      SearchForcedOptions forcedOptions = SearchForcedOptions(alias, FolderData::FastSearchContext::Name, true);
+      mWindow.pushGui(new GuiSearch(mWindow, mSystemManager, &forcedOptions));
+      break;
+    }
+
+    case Components::SearchByLicence:
+    {
+      std::vector <String> licences = mGamelist.getCursor()->Metadata().Licences().Split(" | ");
+
+      if (licences.size() == 1)
+      {
+        SearchForcedOptions forcedOptions = SearchForcedOptions(mGamelist.getCursor()->Metadata().Licences(), FolderData::FastSearchContext::Licences, true);
+        mWindow.pushGui(new GuiSearch(mWindow, mSystemManager, &forcedOptions));
+      }
+
+      else if (licences.size() > 1)
+      {
+        mWindow.pushGui(new MenuSearchLicenceSelector(mWindow, mSystemManager, *mGamelist.getCursor(), licences));
+        return;
+      }
+
+      break;
+     }
+
+    case Components::JumpToLetter:
+    case Components::Sorts:
+    case Components::Regions:
+    case Components::FavoritesOnly:
+    case Components::FavoritesFirst:
+    case Components::FlatFolders:
+    case Components::AutorunGame:
+    case Components::Decorations:
+    default: break;
+  }
+}
+
+void MenuGamelistOptions::MenuSwitchChanged(const ItemSwitch& item, bool& status, int id)
+{
+  (void)item;
+  switch((Components)id)
+  {
+    case Components::FlatFolders: mConf.SetSystemFlatFolders(mSystem, status).Save(); break;
+    case Components::FavoritesOnly:
+    {
+      mConf.SetFavoritesOnly(status);
+      if (mSystemManager.UpdatedTopLevelFilter())
+        mConf.Save();
+      else
+      {
+        mWindow.displayMessage(_("There is no favorite games in any system!"));
+        mConf.SetFavoritesOnly(!status);
+        status = false;
+      }
+      break;
+    }
+    case Components::FavoritesFirst:
+    {
+      mConf.SetFavoritesFirst(status).Save();
+      break;
+    }
+    case Components::AutorunGame:
+    {
+      FileData* game = mGamelist.getCursor();
+      if (game->IsGame())
+      {
+        if (status)
+          mConf.SetAutorunGamePath(game->RomPath().ToString())
+               .SetAutorunSystemUUID(game->System().Descriptor().GUID())
+               .Save();
+        else
+          mConf.SetAutorunGamePath(String::Empty)
+               .SetAutorunSystemUUID(String::Empty)
+               .Save();
+      }
+    }
+    case Components::Download:
+    case Components::Regions:
+    case Components::Sorts:
+    case Components::JumpToLetter:
+    case Components::Search:
+    case Components::MetaData:
+    case Components::MainMenu:
+    case Components::UpdateGamelist:
+    case Components::Delete:
+    case Components::DeleteScreeshot:
+    case Components::SaveStates:
+    case Components::Quit:
+    case Components::ArcadeOptions:
+    case Components::SearchOtherVersions:
+    case Components::SearchByLicence:
+    case Components::Decorations:
+    default: break;
+  }
+
+  mGamelist.refreshList();
+  RefreshGameMenuContext();
+}
+
+void MenuGamelistOptions::MenuMultiChanged(const ItemSelectorBase<RecalboxConf::GamelistDecoration>& item, int id, int index, const std::vector<RecalboxConf::GamelistDecoration>& value)
+{
+  (void)item;
+  (void)index;
+  switch((Components)id)
+  {
+    case Components::Decorations:
+    {
+      RecalboxConf::GamelistDecoration decorations = RecalboxConf::GamelistDecoration::None;
+      for(RecalboxConf::GamelistDecoration deco : value) decorations |= deco;
+      mConf.SetSystemGamelistDecoration(*ViewController::Instance().CurrentSystem(), decorations);
+      break;
+    }
+    case Components::Download:
+    case Components::JumpToLetter:
+    case Components::Sorts:
+    case Components::Regions:
+    case Components::FlatFolders:
+    case Components::FavoritesOnly:
+    case Components::FavoritesFirst:
+    case Components::MetaData:
+    case Components::UpdateGamelist:
+    case Components::Delete:
+    case Components::DeleteScreeshot:
+    case Components::SaveStates:
+    case Components::MainMenu:
+    case Components::Quit:
+    case Components::Search:
+    case Components::ArcadeOptions:
+    case Components::AutorunGame:
+    case Components::SearchOtherVersions:
+    case Components::SearchByLicence:
+    default: break;
+  }
+}

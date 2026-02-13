@@ -1,0 +1,46 @@
+From c3948731965a10b3d459931f4134dd3d95b463aa Mon Sep 17 00:00:00 2001
+From: John Cox <jc@kynesim.co.uk>
+Date: Tue, 5 Mar 2024 15:47:34 +0000
+Subject: [PATCH 172/176] ffconf: Validate ffmpeg & test_root options rather
+ than crashing
+
+---
+ pi-util/ffconf.py | 12 +++++++++++-
+ 1 file changed, 11 insertions(+), 1 deletion(-)
+
+diff --git a/pi-util/ffconf.py b/pi-util/ffconf.py
+index 204e6257fb..71cd838720 100755
+--- a/pi-util/ffconf.py
++++ b/pi-util/ffconf.py
+@@ -219,11 +219,15 @@ if __name__ == '__main__':
+     argp.add_argument("--csvgen", action='store_true', help="Generate CSV file for dir")
+     argp.add_argument("--csv", default="pi-util/conf_h265.2016.csv", help="CSV filename")
+     argp.add_argument("--vcodec", default="hevc_rpi", help="vcodec name to use")
+-    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name")
++    argp.add_argument("--ffmpeg", default="./ffmpeg", help="ffmpeg exec name; if directory given use <dir>/ffmpeg")
+     argp.add_argument("--valgrind", action='store_true', help="Run valgrind on tests")
+     argp.add_argument("--gen_yuv", action='store_true', help="Create yuv file (stored with log under /tmp)")
+     args = argp.parse_args()
+ 
++    if not os.path.isdir(args.test_root):
++        print("Test root dir '%s' not found" % args.test_root)
++        exit(1)
++
+     if args.csvgen:
+         csv.writer(sys.stdout).writerows(scandir(args.test_root))
+         exit(0)
+@@ -244,5 +248,11 @@ if __name__ == '__main__':
+     elif args.vaapi:
+         dectype = HWACCEL_VAAPI
+ 
++    if os.path.isdir(args.ffmpeg):
++        args.ffmpeg = os.path.join(args.ffmpeg, "ffmpeg")
++    if not os.path.isfile(args.ffmpeg):
++        print("FFmpeg file '%s' not found" % args.ffmpeg)
++        exit(1)
++
+     doconf(csva, args.tests, args.test_root, args.vcodec, dectype, args)
+ 
+-- 
+2.46.0
+
