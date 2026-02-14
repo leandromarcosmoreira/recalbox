@@ -219,9 +219,12 @@ jobs:
           fi
           
           if [ ! -f "buildroot/.config" ]; then
-            echo "Configurando buildroot para ${{ matrix.arch }}..."
-            cp configs/recalbox-${{ matrix.arch }}_defconfig buildroot/configs/
-            make -C buildroot recalbox-${{ matrix.arch }}_defconfig
+            echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
+            docker run --rm --security-opt seccomp=unconfined \
+              -v "$(pwd):/work" \
+              -w /work \
+              recalbox-build:latest \
+              make -C buildroot recalbox-${{ matrix.arch }}_defconfig
           fi
           
           docker run --rm --security-opt seccomp=unconfined \
