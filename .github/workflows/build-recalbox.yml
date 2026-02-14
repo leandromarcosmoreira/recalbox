@@ -127,52 +127,42 @@ jobs:
           
           ARTIFACTS=$(echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null)
           
-          # Verificar imagem final
-          if echo "$ARTIFACTS" | grep -q "^imagem-${ARCH}$"; then
-            echo "stage=done" >> $GITHUB_OUTPUT
-            echo "has_image=true" >> $GITHUB_OUTPUT
-            echo "has_packages=true" >> $GITHUB_OUTPUT
-            echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Verificar packages
-          if echo "$ARTIFACTS" | grep -q "^build-packages-${ARCH}$"; then
-            echo "stage=image" >> $GITHUB_OUTPUT
-            echo "has_packages=true" >> $GITHUB_OUTPUT
-            echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Verificar kernel
-          if echo "$ARTIFACTS" | grep -q "^build-kernel-${ARCH}$"; then
-            echo "stage=packages" >> $GITHUB_OUTPUT
-            echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Verificar defconfig
-          if echo "$ARTIFACTS" | grep -q "^buildroot-defconfig-${ARCH}$"; then
-            echo "stage=kernel" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          # Verificar prepare
-          if echo "$ARTIFACTS" | grep -q "^buildroot-prepare-${ARCH}$"; then
-            echo "stage=defconfig" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            exit 0
-          fi
-          
-          echo "stage=prepare" >> $GITHUB_OUTPUT
+          # Verificar em ordem invertida (do mais completo ao menos completo)
+          case "$ARTIFACTS" in
+            *"imagem-${ARCH}"*)
+              echo "stage=done" >> $GITHUB_OUTPUT
+              echo "has_image=true" >> $GITHUB_OUTPUT
+              echo "has_packages=true" >> $GITHUB_OUTPUT
+              echo "has_kernel=true" >> $GITHUB_OUTPUT
+              echo "has_defconfig=true" >> $GITHUB_OUTPUT
+              echo "has_prepare=true" >> $GITHUB_OUTPUT
+              ;;
+            *"build-packages-${ARCH}"*)
+              echo "stage=image" >> $GITHUB_OUTPUT
+              echo "has_packages=true" >> $GITHUB_OUTPUT
+              echo "has_kernel=true" >> $GITHUB_OUTPUT
+              echo "has_defconfig=true" >> $GITHUB_OUTPUT
+              echo "has_prepare=true" >> $GITHUB_OUTPUT
+              ;;
+            *"build-kernel-${ARCH}"*)
+              echo "stage=packages" >> $GITHUB_OUTPUT
+              echo "has_kernel=true" >> $GITHUB_OUTPUT
+              echo "has_defconfig=true" >> $GITHUB_OUTPUT
+              echo "has_prepare=true" >> $GITHUB_OUTPUT
+              ;;
+            *"buildroot-defconfig-${ARCH}"*)
+              echo "stage=kernel" >> $GITHUB_OUTPUT
+              echo "has_defconfig=true" >> $GITHUB_OUTPUT
+              echo "has_prepare=true" >> $GITHUB_OUTPUT
+              ;;
+            *"buildroot-prepare-${ARCH}"*)
+              echo "stage=defconfig" >> $GITHUB_OUTPUT
+              echo "has_prepare=true" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "stage=prepare" >> $GITHUB_OUTPUT
+              ;;
+          esac
 
   prepare:
     name: "[1/5] Preparar Ambiente"
