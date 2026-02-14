@@ -172,6 +172,11 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
+      - name: Checkout repositório
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
       - name: Download ambiente
         uses: actions/download-artifact@v4
         with:
