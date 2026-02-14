@@ -221,28 +221,34 @@ jobs:
           echo "Corrigindo permissoes dos scripts..."
           chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
           
-          mkdir -p output
+          mkdir -p output dl
           
           if [ ! -f "buildroot/.config" ]; then
             echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
             docker run --rm --security-opt seccomp=unconfined \
-              -v "$(pwd):/work" \
-              -w /work \
-              -e "BR2_EXTERNAL=/work" \
-              -e "BR2_PACKAGE_OVERRIDE_FILE=/work/local.mk" \
-              -e "O=/work/output" \
+              -v "$(pwd):/recalbox" \
+              -v "$(pwd)/buildroot:/buildroot" \
+              -v "$(pwd)/dl:/share/dl" \
+              -w /recalbox \
+              -e "ARCH=${{ matrix.arch }}" \
+              -e "BR2_EXTERNAL=/recalbox" \
+              -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+              -e "O=/recalbox/output" \
               recalbox-build:latest \
-              make -C buildroot recalbox-${{ matrix.arch }}_defconfig
+              make recalbox-${{ matrix.arch }}_defconfig
           fi
           
           docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/work" \
+            -v "$(pwd):/recalbox" \
+            -v "$(pwd)/buildroot:/buildroot" \
+            -v "$(pwd)/dl:/share/dl" \
+            -w /recalbox \
             -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
-            -e "BR2_EXTERNAL=/work" \
-            -e "BR2_PACKAGE_OVERRIDE_FILE=/work/local.mk" \
-            -e "O=/work/output" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
             make -C buildroot BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
