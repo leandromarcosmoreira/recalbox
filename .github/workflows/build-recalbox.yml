@@ -1,23 +1,39 @@
-name: Build Recalbox
+name: Recalbox Optimized Build
 
 on:
   workflow_dispatch:
     inputs:
       skip_cache:
-        description: 'Skip cache and do clean build'
+        description: 'Skip all caches and do clean build'
+        required: false
+        default: 'false'
+        type: boolean
+      force_toolchain:
+        description: 'Force rebuild toolchain'
+        required: false
+        default: 'false'
+        type: boolean
+      force_system:
+        description: 'Force rebuild system'
+        required: false
+        default: 'false'
+        type: boolean
+      force_packages:
+        description: 'Force rebuild packages'
         required: false
         default: 'false'
         type: boolean
       architectures:
-        description: 'Architectures to build (comma separated)'
+        description: 'Architectures (comma separated)'
         required: false
         default: 'x86_64'
       build_target:
-        description: 'Build target: all, toolchain, system, packages, image'
+        description: 'Build target'
         required: false
-        default: 'all'
+        default: 'auto'
         type: choice
         options:
+          - auto
           - all
           - toolchain
           - system
@@ -34,10 +50,15 @@ jobs:
     runs-on: ubuntu-latest
     outputs:
       changed_components: ${{ steps.detect.outputs.changed_components }}
+      diff_hash: ${{ steps.detect.outputs.diff_hash }}
       needs_toolchain: ${{ steps.detect.outputs.needs_toolchain }}
       needs_system: ${{ steps.detect.outputs.needs_system }}
       needs_packages: ${{ steps.detect.outputs.needs_packages }}
       needs_image: ${{ steps.detect.outputs.needs_image }}
+      cache_status: ${{ steps.detect.outputs.cache_status }}
+      cache_hit_toolchain: ${{ steps.check_cache.outputs.hit_toolchain }}
+      cache_hit_system: ${{ steps.check_cache.outputs.hit_system }}
+      cache_hit_packages: ${{ steps.check_cache.outputs.hit_packages }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -53,29 +74,112 @@ jobs:
       - name: Detect changed files
         id: detect
         run: |
-          CHANGED_FILES=$(git diff --name-only ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'package/*' 'board/*' 'Config.in*' 'makefile' 2>/dev/null || echo "")
-
+          CHANGED_FILES=$(git diff --name-only ${{ steps.prev_commit.outputs.prev_commit }}...HEAD 2>/dev/null || echo "")
+          
+          TOOLCHAIN_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'toolchain/**' 'package/*/toolchain/**' 'Config.in*' 'configs/**' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          SYSTEM_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'board/**' 'package/**/Config.in' 'scripts/buildroot*.sh' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          PACKAGES_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'package/**' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          
+          DIFF_HASH=$(echo "${TOOLCHAIN_HASH:0:8}-${SYSTEM_HASH:0:8}-${PACKAGES_HASH:0:8}")
+          
+          echo "changed_components=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "diff_hash=$DIFF_HASH" >> $GITHUB_OUTPUT
+          
           NEEDS_TOOLCHAIN=false
           NEEDS_SYSTEM=false
           NEEDS_PACKAGES=false
           NEEDS_IMAGE=true
-
-          if echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in)'; then
+          
+          if echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in|configs/|scripts/)'; then
             NEEDS_TOOLCHAIN=true
             NEEDS_SYSTEM=true
             NEEDS_PACKAGES=true
+            echo "Changes require: TOOLCHAIN + SYSTEM + PACKAGES"
           elif echo "$CHANGED_FILES" | grep -qE '^board/'; then
             NEEDS_SYSTEM=true
             NEEDS_PACKAGES=true
+            echo "Changes require: SYSTEM + PACKAGES"
           elif echo "$CHANGED_FILES" | grep -qE '^package/'; then
             NEEDS_PACKAGES=true
+            echo "Changes require: PACKAGES"
+          elif [ -z "$CHANGED_FILES" ]; then
+            echo "No changes detected - will use cached artifacts"
+            NEEDS_TOOLCHAIN=false
+            NEEDS_SYSTEM=false
+            NEEDS_PACKAGES=false
+          else
+            echo "Changes in scripts/docs, minimal rebuild"
           fi
-
-          echo "changed_components=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          
           echo "needs_toolchain=$NEEDS_TOOLCHAIN" >> $GITHUB_OUTPUT
           echo "needs_system=$NEEDS_SYSTEM" >> $GITHUB_OUTPUT
           echo "needs_packages=$NEEDS_PACKAGES" >> $GITHUB_OUTPUT
           echo "needs_image=$NEEDS_IMAGE" >> $GITHUB_OUTPUT
+          
+          echo "toolchain_hash=$TOOLCHAIN_HASH" >> $GITHUB_OUTPUT
+          echo "system_hash=$SYSTEM_HASH" >> $GITHUB_OUTPUT
+          echo "packages_hash=$PACKAGES_HASH" >> $GITHUB_OUTPUT
+          
+          echo ""
+          echo "=== Changed Files ==="
+          echo "$CHANGED_FILES" | head -20
+          echo "..."
+          echo ""
+          echo "=== Build Decision ==="
+          echo "Diff Hash: $DIFF_HASH"
+          echo "Toolchain: $NEEDS_TOOLCHAIN"
+          echo "System:    $NEEDS_SYSTEM"
+          echo "Packages:  $NEEDS_PACKAGES"
+          echo "Image:     $NEEDS_IMAGE"
+
+      - name: Check cache availability
+        id: check_cache
+        if: ${{ !inputs.skip_cache && !inputs.force_toolchain && !inputs.force_system && !inputs.force_packages }}
+        run: |
+          HIT_TOOLCHAIN=false
+          HIT_SYSTEM=false
+          HIT_PACKAGES=false
+          CACHE_STATUS="none"
+          
+          if [ "${{ steps.detect.outputs.needs_toolchain }}" != "true" ]; then
+            if gh run download -n "toolchain-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
+              HIT_TOOLCHAIN=true
+              CACHE_STATUS="hit_toolchain"
+            fi
+          fi
+          
+          if [ "${{ steps.detect.outputs.needs_system }}" != "true" ]; then
+            if gh run download -n "system-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
+              HIT_SYSTEM=true
+              if [ -z "$CACHE_STATUS" ]; then
+                CACHE_STATUS="hit_system"
+              else
+                CACHE_STATUS="${CACHE_STATUS}+system"
+              fi
+            fi
+          fi
+          
+          if [ "${{ steps.detect.outputs.needs_packages }}" != "true" ]; then
+            if gh run download -n "packages-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
+              HIT_PACKAGES=true
+              if [ -z "$CACHE_STATUS" ]; then
+                CACHE_STATUS="hit_packages"
+              else
+                CACHE_STATUS="${CACHE_STATUS}+packages"
+              fi
+            fi
+          fi
+          
+          if [ "$CACHE_STATUS" = "none" ]; then
+            echo "No cache available - will build from scratch"
+          else
+            echo "Cache found: $CACHE_STATUS"
+          fi
+          
+          echo "hit_toolchain=$HIT_TOOLCHAIN" >> $GITHUB_OUTPUT
+          echo "hit_system=$HIT_SYSTEM" >> $GITHUB_OUTPUT
+          echo "hit_packages=$HIT_PACKAGES" >> $GITHUB_OUTPUT
+          echo "cache_status=$CACHE_STATUS" >> $GITHUB_OUTPUT
 
   setup:
     name: Setup Build Environment
@@ -85,6 +189,10 @@ jobs:
       slug: ${{ steps.version_vars.outputs.slug }}
       date: ${{ steps.version_vars.outputs.date }}
       datetime: ${{ steps.version_vars.outputs.datetime }}
+      cache_status: ${{ needs.detect_changes.outputs.cache_status }}
+      needs_toolchain: ${{ needs.detect_changes.outputs.needs_toolchain }}
+      needs_system: ${{ needs.detect_changes.outputs.needs_system }}
+      needs_packages: ${{ needs.detect_changes.outputs.needs_packages }}
     steps:
       - name: Check out repository
         uses: actions/checkout@v4
@@ -160,9 +268,18 @@ jobs:
     name: Build x86_64
     runs-on: ubuntu-latest
     needs: [setup, detect_changes]
-    if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64'
+    if: |
+      (inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || 
+       inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == '') &&
+      (needs.detect_changes.outputs.needs_toolchain == 'true' || 
+       needs.detect_changes.outputs.needs_system == 'true' ||
+       needs.detect_changes.outputs.needs_packages == 'true' ||
+       needs.detect_changes.outputs.needs_image == 'true' ||
+       inputs.build_target != 'auto')
     env:
       ARCH: x86_64
+      CACHE_KEY: build-x86_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
+      FALLBACK_KEY: build-x86_64-${{ runner.os }}-
     steps:
       - name: Download setup artifact
         uses: actions/download-artifact@v4
@@ -175,19 +292,38 @@ jobs:
 
       - name: Restore caches by architecture
         if: ${{ !inputs.skip_cache }}
+        id: restore-cache
         uses: actions/cache@v4
         with:
           path: |
             buildroot/output
             buildroot/.config
-          key: build-${{ env.ARCH }}-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            build-${{ env.ARCH }}-${{ runner.os }}-
+          key: ${{ env.CACHE_KEY }}
+          restore-keys: ${{ env.FALLBACK_KEY }}
+
+      - name: Determine build strategy
+        id: build_strategy
+        run: |
+          CACHE_RESTORED=false
+          if [ -d "buildroot/output" ] && [ -n "$(ls -A buildroot/output 2>/dev/null)" ]; then
+            CACHE_RESTORED=true
+          fi
+          echo "cache_restored=$CACHE_RESTORED" >> $GITHUB_OUTPUT
+          
+          if [ "$CACHE_RESTORED" = "true" ] && [ "${{ needs.detect_changes.outputs.cache_status }}" != "none" ]; then
+            echo "Using cached artifacts - skipping unnecessary builds"
+          fi
 
       - name: Build Toolchain
-        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_toolchain == 'true' || 
+           needs.detect_changes.outputs.needs_toolchain == 'true' || 
+           inputs.build_target == 'toolchain' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_toolchain == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building Toolchain (from scratch if no cache) ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=x86_64" \
@@ -195,10 +331,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log
+            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log || true
 
       - name: Upload toolchain artifact
-        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        if: |
+          inputs.force_toolchain == 'true' || 
+          needs.detect_changes.outputs.needs_toolchain == 'true' || 
+          inputs.build_target == 'toolchain' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: toolchain-x86_64
@@ -209,9 +349,15 @@ jobs:
           retention-days: 7
 
       - name: Build System
-        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_system == 'true' || 
+           needs.detect_changes.outputs.needs_system == 'true' || 
+           inputs.build_target == 'system' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_system == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building System ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=x86_64" \
@@ -219,10 +365,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log
+            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log || true
 
       - name: Upload system artifact
-        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        if: |
+          inputs.force_system == 'true' || 
+          needs.detect_changes.outputs.needs_system == 'true' || 
+          inputs.build_target == 'system' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: system-x86_64
@@ -233,9 +383,15 @@ jobs:
           retention-days: 7
 
       - name: Build Packages
-        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_packages == 'true' || 
+           needs.detect_changes.outputs.needs_packages == 'true' || 
+           inputs.build_target == 'packages' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_packages == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building Packages ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=x86_64" \
@@ -243,10 +399,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log
+            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log || true
 
       - name: Upload packages artifact
-        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        if: |
+          inputs.force_packages == 'true' || 
+          needs.detect_changes.outputs.needs_packages == 'true' || 
+          inputs.build_target == 'packages' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: packages-x86_64
@@ -265,13 +425,29 @@ jobs:
             buildroot/.config
           retention-days: 7
 
+      - name: Check if build was successful
+        run: |
+          echo "Build x86_64 completed"
+          if [ -f "toolchain.log" ]; then echo "Toolchain: $(tail -5 toolchain.log)"; fi
+          if [ -f "system.log" ]; then echo "System: $(tail -5 system.log)"; fi
+          if [ -f "packages.log" ]; then echo "Packages: $(tail -5 packages.log)"; fi
+
   build_rpi5:
     name: Build RPi5
     runs-on: ubuntu-latest
     needs: [setup, detect_changes]
-    if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64'
+    if: |
+      (inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || 
+       inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == '') &&
+      (needs.detect_changes.outputs.needs_toolchain == 'true' || 
+       needs.detect_changes.outputs.needs_system == 'true' ||
+       needs.detect_changes.outputs.needs_packages == 'true' ||
+       needs.detect_changes.outputs.needs_image == 'true' ||
+       inputs.build_target != 'auto')
     env:
       ARCH: rpi5_64
+      CACHE_KEY: build-rpi5_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
+      FALLBACK_KEY: build-rpi5_64-${{ runner.os }}-
     steps:
       - name: Download setup artifact
         uses: actions/download-artifact@v4
@@ -284,19 +460,34 @@ jobs:
 
       - name: Restore caches by architecture
         if: ${{ !inputs.skip_cache }}
+        id: restore-cache
         uses: actions/cache@v4
         with:
           path: |
             buildroot/output
             buildroot/.config
-          key: build-${{ env.ARCH }}-${{ runner.os }}-${{ github.sha }}
-          restore-keys: |
-            build-${{ env.ARCH }}-${{ runner.os }}-
+          key: ${{ env.CACHE_KEY }}
+          restore-keys: ${{ env.FALLBACK_KEY }}
+
+      - name: Determine build strategy
+        id: build_strategy
+        run: |
+          CACHE_RESTORED=false
+          if [ -d "buildroot/output" ] && [ -n "$(ls -A buildroot/output 2>/dev/null)" ]; then
+            CACHE_RESTORED=true
+          fi
+          echo "cache_restored=$CACHE_RESTORED" >> $GITHUB_OUTPUT
 
       - name: Build Toolchain
-        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_toolchain == 'true' || 
+           needs.detect_changes.outputs.needs_toolchain == 'true' || 
+           inputs.build_target == 'toolchain' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_toolchain == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building Toolchain (from scratch if no cache) ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=rpi5_64" \
@@ -304,10 +495,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log
+            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log || true
 
       - name: Upload toolchain artifact
-        if: needs.detect_changes.outputs.needs_toolchain == 'true' || inputs.build_target == 'toolchain' || inputs.build_target == 'all'
+        if: |
+          inputs.force_toolchain == 'true' || 
+          needs.detect_changes.outputs.needs_toolchain == 'true' || 
+          inputs.build_target == 'toolchain' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: toolchain-rpi5_64
@@ -318,9 +513,15 @@ jobs:
           retention-days: 7
 
       - name: Build System
-        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_system == 'true' || 
+           needs.detect_changes.outputs.needs_system == 'true' || 
+           inputs.build_target == 'system' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_system == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building System ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=rpi5_64" \
@@ -328,10 +529,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log
+            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log || true
 
       - name: Upload system artifact
-        if: needs.detect_changes.outputs.needs_system == 'true' || inputs.build_target == 'system' || inputs.build_target == 'all'
+        if: |
+          inputs.force_system == 'true' || 
+          needs.detect_changes.outputs.needs_system == 'true' || 
+          inputs.build_target == 'system' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: system-rpi5_64
@@ -342,9 +547,15 @@ jobs:
           retention-days: 7
 
       - name: Build Packages
-        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        if: |
+          (inputs.force_packages == 'true' || 
+           needs.detect_changes.outputs.needs_packages == 'true' || 
+           inputs.build_target == 'packages' || 
+           inputs.build_target == 'all') &&
+          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_packages == 'true')
         run: |
           set -euo pipefail
+          echo "=== Building Packages ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=rpi5_64" \
@@ -352,10 +563,14 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log
+            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log || true
 
       - name: Upload packages artifact
-        if: needs.detect_changes.outputs.needs_packages == 'true' || inputs.build_target == 'packages' || inputs.build_target == 'all'
+        if: |
+          inputs.force_packages == 'true' || 
+          needs.detect_changes.outputs.needs_packages == 'true' || 
+          inputs.build_target == 'packages' || 
+          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
           name: packages-rpi5_64
@@ -374,11 +589,22 @@ jobs:
             buildroot/.config
           retention-days: 7
 
+      - name: Check if build was successful
+        run: |
+          echo "Build rpi5_64 completed"
+          if [ -f "toolchain.log" ]; then echo "Toolchain: $(tail -5 toolchain.log)"; fi
+          if [ -f "system.log" ]; then echo "System: $(tail -5 system.log)"; fi
+          if [ -f "packages.log" ]; then echo "Packages: $(tail -5 packages.log)"; fi
+
   build_image:
     name: Build Final Images
     runs-on: ubuntu-latest
-    needs: [setup, detect_changes, build_x86_64, build_rpi5]
-    if: needs.detect_changes.outputs.needs_image == 'true' || inputs.build_target == 'image' || inputs.build_target == 'all'
+    needs: [setup, detect_changes]
+    if: |
+      (needs.detect_changes.outputs.needs_image == 'true' || 
+       inputs.build_target == 'image' || 
+       inputs.build_target == 'all') &&
+      (needs.build_x86_64.result == 'success' || needs.build_x86_64.result == 'skipped' || inputs.architectures == 'rpi5_64')
     steps:
       - name: Download setup artifact
         uses: actions/download-artifact@v4
@@ -397,23 +623,25 @@ jobs:
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
 
       - name: Download x86_64 build artifacts
-        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'rpi5_64'
         uses: actions/download-artifact@v4
         with:
           name: build-x86_64
           path: build-x86_64
           merge-multiple: true
+        continue-on-error: true
 
       - name: Download rpi5_64 build artifacts
-        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'x86_64'
         uses: actions/download-artifact@v4
         with:
           name: build-rpi5_64
           path: build-rpi5_64
           merge-multiple: true
+        continue-on-error: true
 
       - name: Build x86_64 Image
-        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'rpi5_64'
         run: |
           set -euo pipefail
           
@@ -429,15 +657,15 @@ jobs:
             -v "$(pwd):/work" \
             -v "${OUTPUTDIR}:/work/output" \
             -e "ARCH=x86_64" \
-            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
+            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.slug }} (${{ github.run_id }})" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-x86_64.log
+            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-x86_64.log || true
 
       - name: Prepare x86_64 Artifacts
-        if: inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'rpi5_64'
         run: |
           set -euo pipefail
           if [ -f "output/images/recalbox/recalbox.img" ]; then
@@ -449,7 +677,7 @@ jobs:
           fi
 
       - name: Build RPi5 Image
-        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'x86_64'
         run: |
           set -euo pipefail
           
@@ -472,10 +700,10 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-rpi5_64.log
+            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-rpi5_64.log || true
 
       - name: Prepare RPi5 Artifacts
-        if: inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == ''
+        if: inputs.architectures != 'x86_64'
         run: |
           set -euo pipefail
           if [ -f "output/images/recalbox/recalbox.img" ]; then
@@ -524,8 +752,8 @@ jobs:
 
               **Build Date:** ${{ steps.version_vars.outputs.datetime }}
               **Architecture:** ${ARCH}
-              **Commit:** ${{ github.sha }}
-              **Workflow:** #${{ github.run_number }}
+              **Commit:** ${github.sha}
+              **Workflow:** #${github.run_number}
 
               ## Downloads
 

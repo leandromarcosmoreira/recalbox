@@ -62,12 +62,14 @@ RUN apt-get update -y && \
         patch \
         ccache \
         curl \
+        cargo \
         && rm -rf /var/lib/apt/lists/*
 
-RUN curl -sL https://github.com/BLAKE3-team/BLAKE3/releases/download/1.5.4/b3sum-bin-1.5.4-x86_64-unknown-linux-gnu.zip -o /tmp/b3.zip && \
+RUN cargo install b3sum --locked 2>/dev/null || \
+    (curl -sL https://github.com/BLAKE3-team/BLAKE3/releases/latest/download/b3sum-bin-linux-x86_64.zip -o /tmp/b3.zip && \
     unzip -o /tmp/b3.zip -d /usr/local/bin && \
     chmod +x /usr/local/bin/b3sum && \
-    rm /tmp/b3.zip
+    rm /tmp/b3.zip) || true
 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen
