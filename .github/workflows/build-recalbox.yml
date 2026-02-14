@@ -67,12 +67,11 @@ jobs:
         run: |
           # Instalar aria2 se necessário
           if ! command -v aria2c &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y aria2
+            sudo apt-get update && sudo apt-get install -y aria2 jq
           fi
           
           if [ "${{ inputs.skip_cache }}" = "true" ]; then
             echo "skip_cache=true" >> $GITHUB_OUTPUT
-            echo "skip_cache=true" >> /tmp/cache_status
           fi
           
           ARCH="${{ inputs.arch }}"
@@ -81,25 +80,23 @@ jobs:
             exit 0
           fi
           
-          # Buscar artefatos via API do GitHub
-          curl -sL \
-            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            -H "Accept: application/vnd.github+json" \
-            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100" \
-            -o /tmp/artifacts.json
+          # Buscar artefatos via API do GitHub usando aria2c
+          aria2c --quiet=true \
+            --header="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header="Accept: application/vnd.github+json" \
+            -d /tmp -o artifacts.json \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100"
           
-          ARTIFACTS=$(jq -r '.artifacts[] | "\(.name) \(.workflow_run.created_at)"' /tmp/artifacts.json 2>/dev/null || echo "")
-          
-          echo "Artefatos encontrados:"
-          echo "$ARTIFACTS"
-          echo "$ARTIFACTS" >> $GITHUB_OUTPUT
+          # Lista apenas nomes para debug
+          echo "Artefatos encontrados:" >> $GITHUB_STEP_SUMMARY
+          jq -r '.artifacts[].name' /tmp/artifacts.json >> $GITHUB_STEP_SUMMARY || true
 
       - name: Determinar próximo estágio
         id: determinar
         run: |
-          # Instalar aria2 e jq
-          if ! command -v aria2c &> /dev/null; then
-            sudo apt-get update && sudo apt-get install -y aria2
+          # Instalar jq
+          if ! command -v jq &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y jq
           fi
           
           ARCH="${{ inputs.arch }}"
@@ -125,13 +122,6 @@ jobs:
             echo "has_image=false" >> $GITHUB_OUTPUT
             exit 0
           fi
-          
-          # Download lista de artefatos usando aria2c
-          aria2c --quiet=true \
-            --header="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
-            --header="Accept: application/vnd.github+json" \
-            -d /tmp -o artifacts.json \
-            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100"
           
           RESPONSE=$(cat /tmp/artifacts.json)
           
