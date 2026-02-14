@@ -1,12 +1,12 @@
 FROM ubuntu:22.04
 LABEL maintainer="Recalbox Team"
 
-ENV TERM xterm
-ENV ARCH ''
-ENV RECALBOX_VERSION 'development'
-ENV RECALBOX_CCACHE_ENABLED ''
-ENV PACKAGE ''
-ENV MAKE_JOBS=''
+ENV TERM=xterm
+ENV ARCH=
+ENV RECALBOX_VERSION=development
+ENV RECALBOX_CCACHE_ENABLED=
+ENV PACKAGE=
+ENV MAKE_JOBS=
 
 RUN apt-get update -y && \
     apt-get install -y tzdata && \

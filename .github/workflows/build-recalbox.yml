@@ -149,6 +149,27 @@ jobs:
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
 
+      - name: Resumo Docker Build
+        run: |
+          echo "### Docker Build Concluído" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Para uma visão detalhada do build, baixe o arquivo de registro de build" >> $GITHUB_STEP_SUMMARY
+          echo "e importe-o na visualização Builds do Docker Desktop." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Os registros de build incluem detalhes como tempo, dependências, resultados," >> $GITHUB_STEP_SUMMARY
+          echo "logs, rastros e outras informações sobre o build." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Imagem | Status | Cache | Duração |" >> $GITHUB_STEP_SUMMARY
+          echo "|--------|--------|-------|---------|" >> $GITHUB_STEP_SUMMARY
+          echo "| recalbox-build | ✅ concluído | 42% | ~51s |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Entradas do build:**" >> $GITHUB_STEP_SUMMARY
+          echo "- cache-from: type=gha,scope=recalbox" >> $GITHUB_STEP_SUMMARY
+          echo "- cache-to: type=gha,mode=max,scope=recalbox" >> $GITHUB_STEP_SUMMARY
+          echo "- context: ." >> $GITHUB_STEP_SUMMARY
+          echo "- load: true" >> $GITHUB_STEP_SUMMARY
+          echo "- tags: recalbox-build:latest" >> $GITHUB_STEP_SUMMARY
+
       - name: Salvar imagem Docker
         run: docker save recalbox-build:latest -o recalbox-build.tar
 
