@@ -401,10 +401,9 @@ jobs:
             -e "USER=root" \
             -u root:root \
             recalbox-build:latest \
-            sh -c "chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null; make -C buildroot BR2_DL_DIR='/recalbox/dl' RECALBOX_IMAGES='recalbox' 2>&1 | tee /recalbox/image.log; exit \${PIPESTATUS[0]}"
+            sh -c "mkdir -p output build && chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null; make -C buildroot BR2_DL_DIR='/recalbox/dl' RECALBOX_IMAGES='recalbox' O='/recalbox/output' 2>&1"
           
-          ls -la output/images/recalbox/ 2>/dev/null || echo "Imagem não encontrada"
-          ls -la output/images/* 2>/dev/null || echo "Diretório de imagens vazio"
+          ls -la output/images/ 2>/dev/null || echo "Imagem não encontrada"
 
       - name: Preparar artefatos
         run: |
