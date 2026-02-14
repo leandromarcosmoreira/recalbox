@@ -211,6 +211,11 @@ jobs:
           path: .
         continue-on-error: true
 
+      - name: Corrigir permissões
+        run: |
+          chmod -R 777 buildroot output dl 2>/dev/null || true
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+
       - name: Baixar cache defconfig existente
         uses: actions/download-artifact@v4
         with:
@@ -268,6 +273,11 @@ jobs:
           merge-multiple: true
         continue-on-error: true
 
+      - name: Corrigir permissões
+        run: |
+          chmod -R 777 buildroot output dl 2>/dev/null || true
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+
       - name: Build Docker
         uses: docker/build-push-action@v6
         with:
@@ -316,6 +326,11 @@ jobs:
           pattern: build*
           merge-multiple: true
         continue-on-error: true
+
+      - name: Corrigir permissões
+        run: |
+          chmod -R 777 buildroot output dl 2>/dev/null || true
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 
       - name: Build Docker
         uses: docker/build-push-action@v6
@@ -366,6 +381,11 @@ jobs:
           pattern: build*
           merge-multiple: true
         continue-on-error: true
+
+      - name: Corrigir permissões
+        run: |
+          chmod -R 777 buildroot output dl 2>/dev/null || true
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 
       - name: Build Docker
         uses: docker/build-push-action@v6
