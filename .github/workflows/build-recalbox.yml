@@ -148,7 +148,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: environment-${{ github.run_id }}
-          path: recalbox-build.tar
+          path: |
+            recalbox-build.tar
+            buildroot/
           retention-days: 2
 
   build:
@@ -176,6 +178,12 @@ jobs:
           name: environment-${{ needs.prepare.outputs.build_id }}
           path: .
 
+      - name: Setup buildroot
+        run: |
+          if [ -d "buildroot" ]; then
+            echo "Buildroot restored from cache"
+          fi
+
       - name: Load Docker
         run: docker load -i recalbox-build.tar
 
@@ -190,6 +198,21 @@ jobs:
       - name: Build all
         run: |
           set -e
+          
+          if [ ! -d "buildroot" ]; then
+            echo "Cloning buildroot..."
+            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
+            cd buildroot
+            git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            cd ..
+          fi
+          
+          if [ ! -f "buildroot/.config" ]; then
+            echo "Configuring buildroot for ${{ matrix.arch }}..."
+            make -C buildroot recalbox-${{ matrix.arch }}_defconfig
+          fi
+          
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -e "ARCH=${{ matrix.arch }}" \
@@ -197,16 +220,19 @@ jobs:
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
+            make -C buildroot BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
 
       - name: Prepare artifacts
         run: |
-          if [ -f "output/images/recalbox/recalbox.img" ]; then
+          if [ -f "buildroot/output/images/recalbox/recalbox.img" ]; then
             mkdir -p dist-${{ matrix.arch }}
-            cp output/images/recalbox/* dist-${{ matrix.arch }}/
+            cp buildroot/output/images/recalbox/* dist-${{ matrix.arch }}/
             cp build-${{ matrix.arch }}.log dist-${{ matrix.arch }}/
             cd dist-${{ matrix.arch }}
             sha256sum * > SHA256SUMS.txt
+          else
+            echo "Build output not found"
+            ls -la buildroot/output/images/ 2>/dev/null || echo "No output directory"
           fi
 
       - name: Upload artifacts
