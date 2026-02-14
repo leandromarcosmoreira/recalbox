@@ -146,7 +146,7 @@ jobs:
   defconfig:
     name: "[2/5] Configurar Build"
     runs-on: ubuntu-latest
-    needs: [1-prepare, detectar_estado]
+    needs: [prepare, detectar_estado]
     if: needs.detectar_estado.outputs.stage == 'stage_2' || needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
@@ -204,7 +204,7 @@ jobs:
   kernel:
     name: "[3/5] Compilar Kernel"
     runs-on: ubuntu-latest
-    needs: [2-defconfig, detectar_estado]
+    needs: [defconfig, detectar_estado]
     if: needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
@@ -253,7 +253,7 @@ jobs:
   packages:
     name: "[4/5] Compilar Pacotes"
     runs-on: ubuntu-latest
-    needs: [3-kernel, detectar_estado]
+    needs: [kernel, detectar_estado]
     if: needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
@@ -303,7 +303,7 @@ jobs:
   gen_image:
     name: "[5/5] Gerar Imagem"
     runs-on: ubuntu-latest
-    needs: [4-packages, detectar_estado]
+    needs: [packages, detectar_estado]
     if: needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
@@ -360,7 +360,7 @@ jobs:
   completo:
     name: Build Completo
     runs-on: ubuntu-latest
-    needs: [5-image, detectar_estado]
+    needs: [gen_image, detectar_estado]
     if: needs.detectar_estado.outputs.stage == 'done'
     steps:
       - name: Verificar imagem existente
