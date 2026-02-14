@@ -43,158 +43,160 @@ on:
 env:
   DOCKER_BUILDKIT: 1
   COMPOSE_DOCKER_CLI_BUILD: 1
+  GH_CLI_VERSION: '2.65.0'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
+  #############################################################################
+  # PHASE 1: DETECT CHANGES
+  #############################################################################
   detect_changes:
     name: Detect Changes
     runs-on: ubuntu-latest
     outputs:
+      diff_hash: ${{ steps.hashes.outputs.diff_hash }}
+      toolchain_hash: ${{ steps.hashes.outputs.toolchain_hash }}
+      system_hash: ${{ steps.hashes.outputs.system_hash }}
+      packages_hash: ${{ steps.hashes.outputs.packages_hash }}
       changed_components: ${{ steps.detect.outputs.changed_components }}
-      diff_hash: ${{ steps.detect.outputs.diff_hash }}
       needs_toolchain: ${{ steps.detect.outputs.needs_toolchain }}
       needs_system: ${{ steps.detect.outputs.needs_system }}
       needs_packages: ${{ steps.detect.outputs.needs_packages }}
       needs_image: ${{ steps.detect.outputs.needs_image }}
-      cache_status: ${{ steps.detect.outputs.cache_status }}
-      cache_hit_toolchain: ${{ steps.check_cache.outputs.hit_toolchain }}
-      cache_hit_system: ${{ steps.check_cache.outputs.hit_system }}
-      cache_hit_packages: ${{ steps.check_cache.outputs.hit_packages }}
+      changed_files: ${{ steps.detect.outputs.changed_files }}
+      is_full_rebuild: ${{ steps.detect.outputs.is_full_rebuild }}
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get previous commit hash
+      - name: Get previous commit
         id: prev_commit
         run: |
-          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "")
+          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || echo "HEAD~1 not found, using first commit")
+          if [ -z "$PREV_COMMIT" ]; then
+            PREV_COMMIT=$(git rev-list --max-parents=0 HEAD)
+          fi
           echo "prev_commit=$PREV_COMMIT" >> $GITHUB_OUTPUT
 
-      - name: Detect changed files
+      - name: Compute content hashes
+        id: hashes
+        run: |
+          TOOLCHAIN_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- \
+            'toolchain/**' 'package/*/toolchain/**' 'Config.in*' 'configs/**' 'scripts/buildroot*.sh' \
+            2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          
+          SYSTEM_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- \
+            'board/**' 'package/**/Config.in' 'scripts/buildroot*.sh' \
+            2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          
+          PACKAGES_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- \
+            'package/**' \
+            2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
+          
+          DIFF_HASH="${TOOLCHAIN_HASH:0:8}-${SYSTEM_HASH:0:8}-${PACKAGES_HASH:0:8}"
+          
+          echo "toolchain_hash=$TOOLCHAIN_HASH" >> $GITHUB_OUTPUT
+          echo "system_hash=$SYSTEM_HASH" >> $GITHUB_OUTPUT
+          echo "packages_hash=$PACKAGES_HASH" >> $GITHUB_OUTPUT
+          echo "diff_hash=$DIFF_HASH" >> $GITHUB_OUTPUT
+
+      - name: Detect changed components
         id: detect
         run: |
           CHANGED_FILES=$(git diff --name-only ${{ steps.prev_commit.outputs.prev_commit }}...HEAD 2>/dev/null || echo "")
-          
-          TOOLCHAIN_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'toolchain/**' 'package/*/toolchain/**' 'Config.in*' 'configs/**' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
-          SYSTEM_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'board/**' 'package/**/Config.in' 'scripts/buildroot*.sh' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
-          PACKAGES_HASH=$(git diff ${{ steps.prev_commit.outputs.prev_commit }}...HEAD -- 'package/**' 2>/dev/null | sha256sum | cut -d' ' -f1 || echo "empty")
-          
-          DIFF_HASH=$(echo "${TOOLCHAIN_HASH:0:8}-${SYSTEM_HASH:0:8}-${PACKAGES_HASH:0:8}")
-          
-          echo "changed_components=$CHANGED_FILES" >> $GITHUB_OUTPUT
-          echo "diff_hash=$DIFF_HASH" >> $GITHUB_OUTPUT
+          CHANGED_COUNT=$(echo "$CHANGED_FILES" | wc -l)
           
           NEEDS_TOOLCHAIN=false
           NEEDS_SYSTEM=false
           NEEDS_PACKAGES=false
           NEEDS_IMAGE=true
+          IS_FULL_REBUILD=false
           
-          if echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in|configs/|scripts/)'; then
-            NEEDS_TOOLCHAIN=true
-            NEEDS_SYSTEM=true
-            NEEDS_PACKAGES=true
-            echo "Changes require: TOOLCHAIN + SYSTEM + PACKAGES"
-          elif echo "$CHANGED_FILES" | grep -qE '^board/'; then
-            NEEDS_SYSTEM=true
-            NEEDS_PACKAGES=true
-            echo "Changes require: SYSTEM + PACKAGES"
-          elif echo "$CHANGED_FILES" | grep -qE '^package/'; then
-            NEEDS_PACKAGES=true
-            echo "Changes require: PACKAGES"
-          elif [ -z "$CHANGED_FILES" ]; then
-            echo "No changes detected - will use cached artifacts"
+          if [ "$CHANGED_COUNT" -eq 0 ] || [ -z "$CHANGED_FILES" ]; then
+            echo "No changes detected"
             NEEDS_TOOLCHAIN=false
             NEEDS_SYSTEM=false
             NEEDS_PACKAGES=false
+          elif echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in|configs/|scripts/buildroot)'; then
+            NEEDS_TOOLCHAIN=true
+            NEEDS_SYSTEM=true
+            NEEDS_PACKAGES=true
+            echo "Toolchain-related changes detected"
+          elif echo "$CHANGED_FILES" | grep -qE '^board/'; then
+            NEEDS_SYSTEM=true
+            NEEDS_PACKAGES=true
+            echo "Board-related changes detected"
+          elif echo "$CHANGED_FILES" | grep -qE '^package/'; then
+            NEEDS_PACKAGES=true
+            echo "Package changes detected"
           else
-            echo "Changes in scripts/docs, minimal rebuild"
+            echo "Other changes (scripts/docs)"
           fi
           
+          if [ "${{ inputs.skip_cache }}" == "true" ]; then
+            NEEDS_TOOLCHAIN=true
+            NEEDS_SYSTEM=true
+            NEEDS_PACKAGES=true
+            IS_FULL_REBUILD=true
+          fi
+          
+          if [ "${{ inputs.force_toolchain }}" == "true" ]; then
+            NEEDS_TOOLCHAIN=true
+          fi
+          if [ "${{ inputs.force_system }}" == "true" ]; then
+            NEEDS_SYSTEM=true
+          fi
+          if [ "${{ inputs.force_packages }}" == "true" ]; then
+            NEEDS_PACKAGES=true
+          fi
+          
+          if [ "${{ inputs.build_target }}" != "auto" ]; then
+            case "${{ inputs.build_target }}" in
+              toolchain) NEEDS_TOOLCHAIN=true; NEEDS_SYSTEM=false; NEEDS_PACKAGES=false ;;
+              system) NEEDS_TOOLCHAIN=false; NEEDS_SYSTEM=true; NEEDS_PACKAGES=false ;;
+              packages) NEEDS_TOOLCHAIN=false; NEEDS_SYSTEM=false; NEEDS_PACKAGES=true ;;
+              image) NEEDS_TOOLCHAIN=false; NEEDS_SYSTEM=false; NEEDS_PACKAGES=false ;;
+              all) NEEDS_TOOLCHAIN=true; NEEDS_SYSTEM=true; NEEDS_PACKAGES=true ;;
+            esac
+          fi
+          
+          echo "changed_components=$CHANGED_FILES" >> $GITHUB_OUTPUT
+          echo "changed_files=$CHANGED_COUNT" >> $GITHUB_OUTPUT
           echo "needs_toolchain=$NEEDS_TOOLCHAIN" >> $GITHUB_OUTPUT
           echo "needs_system=$NEEDS_SYSTEM" >> $GITHUB_OUTPUT
           echo "needs_packages=$NEEDS_PACKAGES" >> $GITHUB_OUTPUT
           echo "needs_image=$NEEDS_IMAGE" >> $GITHUB_OUTPUT
-          
-          echo "toolchain_hash=$TOOLCHAIN_HASH" >> $GITHUB_OUTPUT
-          echo "system_hash=$SYSTEM_HASH" >> $GITHUB_OUTPUT
-          echo "packages_hash=$PACKAGES_HASH" >> $GITHUB_OUTPUT
+          echo "is_full_rebuild=$IS_FULL_REBUILD" >> $GITHUB_OUTPUT
           
           echo ""
-          echo "=== Changed Files ==="
-          echo "$CHANGED_FILES" | head -20
-          echo "..."
-          echo ""
-          echo "=== Build Decision ==="
-          echo "Diff Hash: $DIFF_HASH"
+          echo "=== Detection Results ==="
+          echo "Changed files: $CHANGED_COUNT"
           echo "Toolchain: $NEEDS_TOOLCHAIN"
-          echo "System:    $NEEDS_SYSTEM"
-          echo "Packages:  $NEEDS_PACKAGES"
-          echo "Image:     $NEEDS_IMAGE"
+          echo "System: $NEEDS_SYSTEM"
+          echo "Packages: $NEEDS_PACKAGES"
+          echo "Image: $NEEDS_IMAGE"
+          echo "Full rebuild: $IS_FULL_REBUILD"
 
-      - name: Check cache availability
-        id: check_cache
-        if: ${{ !inputs.skip_cache && !inputs.force_toolchain && !inputs.force_system && !inputs.force_packages }}
-        run: |
-          HIT_TOOLCHAIN=false
-          HIT_SYSTEM=false
-          HIT_PACKAGES=false
-          CACHE_STATUS="none"
-          
-          if [ "${{ steps.detect.outputs.needs_toolchain }}" != "true" ]; then
-            if gh run download -n "toolchain-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
-              HIT_TOOLCHAIN=true
-              CACHE_STATUS="hit_toolchain"
-            fi
-          fi
-          
-          if [ "${{ steps.detect.outputs.needs_system }}" != "true" ]; then
-            if gh run download -n "system-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
-              HIT_SYSTEM=true
-              if [ -z "$CACHE_STATUS" ]; then
-                CACHE_STATUS="hit_system"
-              else
-                CACHE_STATUS="${CACHE_STATUS}+system"
-              fi
-            fi
-          fi
-          
-          if [ "${{ steps.detect.outputs.needs_packages }}" != "true" ]; then
-            if gh run download -n "packages-${{ inputs.architectures }}" --dir /tmp/check_cache 2>/dev/null; then
-              HIT_PACKAGES=true
-              if [ -z "$CACHE_STATUS" ]; then
-                CACHE_STATUS="hit_packages"
-              else
-                CACHE_STATUS="${CACHE_STATUS}+packages"
-              fi
-            fi
-          fi
-          
-          if [ "$CACHE_STATUS" = "none" ]; then
-            echo "No cache available - will build from scratch"
-          else
-            echo "Cache found: $CACHE_STATUS"
-          fi
-          
-          echo "hit_toolchain=$HIT_TOOLCHAIN" >> $GITHUB_OUTPUT
-          echo "hit_system=$HIT_SYSTEM" >> $GITHUB_OUTPUT
-          echo "hit_packages=$HIT_PACKAGES" >> $GITHUB_OUTPUT
-          echo "cache_status=$CACHE_STATUS" >> $GITHUB_OUTPUT
-
-  setup:
-    name: Setup Build Environment
+  #############################################################################
+  # PHASE 2: PREPARE ENVIRONMENT (Parallel with architecture builds)
+  #############################################################################
+  prepare_environment:
+    name: Prepare Build Environment
     runs-on: ubuntu-latest
     needs: detect_changes
     outputs:
-      slug: ${{ steps.version_vars.outputs.slug }}
-      date: ${{ steps.version_vars.outputs.date }}
-      datetime: ${{ steps.version_vars.outputs.datetime }}
-      cache_status: ${{ needs.detect_changes.outputs.cache_status }}
-      needs_toolchain: ${{ needs.detect_changes.outputs.needs_toolchain }}
-      needs_system: ${{ needs.detect_changes.outputs.needs_system }}
-      needs_packages: ${{ needs.detect_changes.outputs.needs_packages }}
+      docker_image_tag: ${{ steps.build_docker.outputs.image_tag }}
+      date: ${{ steps.version.outputs.date }}
+      slug: ${{ steps.version.outputs.slug }}
+      datetime: ${{ steps.version.outputs.datetime }}
+      build_id: ${{ steps.version.outputs.build_id }}
     steps:
-      - name: Check out repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           submodules: 'recursive'
@@ -204,45 +206,45 @@ jobs:
         run: |
           set -euo pipefail
           if [ ! -d buildroot ]; then
-            echo "Clonando buildroot..."
+            echo "Cloning buildroot..."
             git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot || \
             git clone --depth 1 https://git.busybox.net/buildroot buildroot
-          else
-            echo "Diretório buildroot já existe."
           fi
 
-      - name: Update buildroot to correct commit
+      - name: Update buildroot to specific commit
         run: |
           cd buildroot
           git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
           git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
 
-      - name: Get version info
-        id: version_vars
+      - name: Generate version info
+        id: version
         run: |
           echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
           echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
           echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
+          echo "build_id=${GITHUB_RUN_ID}" >> $GITHUB_OUTPUT
 
       - name: Restore Buildroot Downloads Cache
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
           path: buildroot/dl
-          key: buildroot-dl-${{ runner.os }}-${{ hashFiles('board/**/ Config.in*') }}
+          key: buildroot-dl-${{ github.runner_os }}-${{ hashFiles('board/**/ Config.in*') }}
           restore-keys: |
-            buildroot-dl-${{ runner.os }}-
+            buildroot-dl-${{ github.runner_os }}-
 
       - name: Restore ccache Cache
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: recalbox-ccache-${{ runner.os }}-${{ github.sha }}
+          key: recalbox-ccache-${{ github.runner_os }}-${{ needs.detect_changes.outputs.diff_hash }}
           restore-keys: |
-            recalbox-ccache-${{ runner.os }}-
+            recalbox-ccache-${{ github.runner_os }}-
 
       - name: Build Docker Image
+        id: build_docker
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -251,507 +253,422 @@ jobs:
           tags: recalbox-build:latest
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
+          outputs: type=docker
 
       - name: Upload Docker Image
         run: |
           docker save recalbox-build:latest -o recalbox-build.tar
 
-      - name: Upload setup artifact
+      - name: Upload environment artifact
         uses: actions/upload-artifact@v4
         with:
-          name: setup-artifact
+          name: environment-${{ github.run_id }}
           path: |
             recalbox-build.tar
-          retention-days: 1
+          retention-days: 2
 
-  build_x86_64:
-    name: Build x86_64
+  #############################################################################
+  # PHASE 3: BUILD TOOLCHAINS (Parallel for each architecture)
+  #############################################################################
+  build_toolchain:
+    name: Build Toolchain ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    needs: [setup, detect_changes]
+    needs: [detect_changes, prepare_environment]
     if: |
-      (inputs.architectures == 'x86_64' || inputs.architectures == 'x86_64,rpi5_64' || 
-       inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == '') &&
-      (needs.detect_changes.outputs.needs_toolchain == 'true' || 
-       needs.detect_changes.outputs.needs_system == 'true' ||
-       needs.detect_changes.outputs.needs_packages == 'true' ||
-       needs.detect_changes.outputs.needs_image == 'true' ||
-       inputs.build_target != 'auto')
+      needs.detect_changes.outputs.needs_toolchain == 'true' ||
+      inputs.force_toolchain == 'true' ||
+      inputs.build_target == 'toolchain' ||
+      inputs.build_target == 'all'
+    matrix:
+      include:
+        - arch: x86_64
+          artifact_name: toolchain-x86_64
+        - arch: rpi5_64
+          artifact_name: toolchain-rpi5_64
     env:
-      ARCH: x86_64
-      CACHE_KEY: build-x86_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
-      FALLBACK_KEY: build-x86_64-${{ runner.os }}-
+      ARCH: ${{ matrix.arch }}
+      CACHE_KEY: toolchain-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detect_changes.outputs.toolchain_hash }}
+      FALLBACK_KEY: toolchain-${{ matrix.arch }}-${{ github.runner_os }}-
     steps:
-      - name: Download setup artifact
+      - name: Download environment artifact
         uses: actions/download-artifact@v4
         with:
-          name: setup-artifact
+          name: environment-${{ needs.prepare_environment.outputs.build_id }}
           path: .
 
       - name: Load Docker Image
         run: docker load -i recalbox-build.tar
 
-      - name: Restore caches by architecture
+      - name: Restore toolchain cache
         if: ${{ !inputs.skip_cache }}
-        id: restore-cache
         uses: actions/cache@v4
         with:
-          path: |
-            buildroot/output
-            buildroot/.config
+          path: buildroot/output
           key: ${{ env.CACHE_KEY }}
           restore-keys: ${{ env.FALLBACK_KEY }}
 
-      - name: Determine build strategy
-        id: build_strategy
-        run: |
-          CACHE_RESTORED=false
-          if [ -d "buildroot/output" ] && [ -n "$(ls -A buildroot/output 2>/dev/null)" ]; then
-            CACHE_RESTORED=true
-          fi
-          echo "cache_restored=$CACHE_RESTORED" >> $GITHUB_OUTPUT
-          
-          if [ "$CACHE_RESTORED" = "true" ] && [ "${{ needs.detect_changes.outputs.cache_status }}" != "none" ]; then
-            echo "Using cached artifacts - skipping unnecessary builds"
-          fi
-
       - name: Build Toolchain
-        if: |
-          (inputs.force_toolchain == 'true' || 
-           needs.detect_changes.outputs.needs_toolchain == 'true' || 
-           inputs.build_target == 'toolchain' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_toolchain == 'true')
         run: |
           set -euo pipefail
-          echo "=== Building Toolchain (from scratch if no cache) ==="
+          echo "=== Building Toolchain for ${{ matrix.arch }} ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
-            -e "ARCH=x86_64" \
+            -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log || true
+            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain-${{ matrix.arch }}.log
 
       - name: Upload toolchain artifact
-        if: |
-          inputs.force_toolchain == 'true' || 
-          needs.detect_changes.outputs.needs_toolchain == 'true' || 
-          inputs.build_target == 'toolchain' || 
-          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
-          name: toolchain-x86_64
+          name: ${{ matrix.artifact_name }}-${{ needs.detect_changes.outputs.diff_hash }}
           path: |
             buildroot/output
             buildroot/.config
-            toolchain.log
+            toolchain-${{ matrix.arch }}.log
           retention-days: 7
 
-      - name: Build System
-        if: |
-          (inputs.force_system == 'true' || 
-           needs.detect_changes.outputs.needs_system == 'true' || 
-           inputs.build_target == 'system' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_system == 'true')
+      - name: Report status
         run: |
-          set -euo pipefail
-          echo "=== Building System ==="
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/work" \
-            -e "ARCH=x86_64" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "RECALBOX_CCACHE_ENABLED=1" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log || true
+          echo "=== Toolchain ${{ matrix.arch }} Build Complete ==="
+          if [ -f "toolchain-${{ matrix.arch }}.log" ]; then
+            echo "Last 10 lines of log:"
+            tail -10 toolchain-${{ matrix.arch }}.log
+          fi
 
-      - name: Upload system artifact
-        if: |
-          inputs.force_system == 'true' || 
-          needs.detect_changes.outputs.needs_system == 'true' || 
-          inputs.build_target == 'system' || 
-          inputs.build_target == 'all'
-        uses: actions/upload-artifact@v4
-        with:
-          name: system-x86_64
-          path: |
-            buildroot/output
-            buildroot/.config
-            system.log
-          retention-days: 7
-
-      - name: Build Packages
-        if: |
-          (inputs.force_packages == 'true' || 
-           needs.detect_changes.outputs.needs_packages == 'true' || 
-           inputs.build_target == 'packages' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_packages == 'true')
-        run: |
-          set -euo pipefail
-          echo "=== Building Packages ==="
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/work" \
-            -e "ARCH=x86_64" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "RECALBOX_CCACHE_ENABLED=1" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log || true
-
-      - name: Upload packages artifact
-        if: |
-          inputs.force_packages == 'true' || 
-          needs.detect_changes.outputs.needs_packages == 'true' || 
-          inputs.build_target == 'packages' || 
-          inputs.build_target == 'all'
-        uses: actions/upload-artifact@v4
-        with:
-          name: packages-x86_64
-          path: |
-            buildroot/output
-            buildroot/.config
-            packages.log
-          retention-days: 7
-
-      - name: Save build state for cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-x86_64
-          path: |
-            buildroot/output
-            buildroot/.config
-          retention-days: 7
-
-      - name: Check if build was successful
-        run: |
-          echo "Build x86_64 completed"
-          if [ -f "toolchain.log" ]; then echo "Toolchain: $(tail -5 toolchain.log)"; fi
-          if [ -f "system.log" ]; then echo "System: $(tail -5 system.log)"; fi
-          if [ -f "packages.log" ]; then echo "Packages: $(tail -5 packages.log)"; fi
-
-  build_rpi5:
-    name: Build RPi5
+  #############################################################################
+  # PHASE 4: BUILD SYSTEMS (Parallel for each architecture)
+  #############################################################################
+  build_system:
+    name: Build System ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    needs: [setup, detect_changes]
+    needs: [detect_changes, prepare_environment]
     if: |
-      (inputs.architectures == 'rpi5_64' || inputs.architectures == 'x86_64,rpi5_64' || 
-       inputs.architectures == 'rpi5_64,x86_64' || inputs.architectures == '') &&
-      (needs.detect_changes.outputs.needs_toolchain == 'true' || 
-       needs.detect_changes.outputs.needs_system == 'true' ||
-       needs.detect_changes.outputs.needs_packages == 'true' ||
-       needs.detect_changes.outputs.needs_image == 'true' ||
-       inputs.build_target != 'auto')
+      needs.detect_changes.outputs.needs_system == 'true' ||
+      inputs.force_system == 'true' ||
+      inputs.build_target == 'system' ||
+      inputs.build_target == 'all'
+    matrix:
+      include:
+        - arch: x86_64
+          artifact_name: system-x86_64
+        - arch: rpi5_64
+          artifact_name: system-rpi5_64
     env:
-      ARCH: rpi5_64
-      CACHE_KEY: build-rpi5_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
-      FALLBACK_KEY: build-rpi5_64-${{ runner.os }}-
+      ARCH: ${{ matrix.arch }}
+      CACHE_KEY: system-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detect_changes.outputs.system_hash }}
+      FALLBACK_KEY: system-${{ matrix.arch }}-${{ github.runner_os }}-
     steps:
-      - name: Download setup artifact
+      - name: Download environment artifact
         uses: actions/download-artifact@v4
         with:
-          name: setup-artifact
+          name: environment-${{ needs.prepare_environment.outputs.build_id }}
           path: .
 
       - name: Load Docker Image
         run: docker load -i recalbox-build.tar
 
-      - name: Restore caches by architecture
+      - name: Restore system cache
         if: ${{ !inputs.skip_cache }}
-        id: restore-cache
         uses: actions/cache@v4
         with:
-          path: |
-            buildroot/output
-            buildroot/.config
+          path: buildroot/output
           key: ${{ env.CACHE_KEY }}
           restore-keys: ${{ env.FALLBACK_KEY }}
 
-      - name: Determine build strategy
-        id: build_strategy
-        run: |
-          CACHE_RESTORED=false
-          if [ -d "buildroot/output" ] && [ -n "$(ls -A buildroot/output 2>/dev/null)" ]; then
-            CACHE_RESTORED=true
-          fi
-          echo "cache_restored=$CACHE_RESTORED" >> $GITHUB_OUTPUT
-
-      - name: Build Toolchain
-        if: |
-          (inputs.force_toolchain == 'true' || 
-           needs.detect_changes.outputs.needs_toolchain == 'true' || 
-           inputs.build_target == 'toolchain' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_toolchain == 'true')
-        run: |
-          set -euo pipefail
-          echo "=== Building Toolchain (from scratch if no cache) ==="
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/work" \
-            -e "ARCH=rpi5_64" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "RECALBOX_CCACHE_ENABLED=1" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" toolchain 2>&1 | tee toolchain.log || true
-
-      - name: Upload toolchain artifact
-        if: |
-          inputs.force_toolchain == 'true' || 
-          needs.detect_changes.outputs.needs_toolchain == 'true' || 
-          inputs.build_target == 'toolchain' || 
-          inputs.build_target == 'all'
-        uses: actions/upload-artifact@v4
-        with:
-          name: toolchain-rpi5_64
-          path: |
-            buildroot/output
-            buildroot/.config
-            toolchain.log
-          retention-days: 7
-
       - name: Build System
-        if: |
-          (inputs.force_system == 'true' || 
-           needs.detect_changes.outputs.needs_system == 'true' || 
-           inputs.build_target == 'system' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_system == 'true')
         run: |
           set -euo pipefail
-          echo "=== Building System ==="
+          echo "=== Building System for ${{ matrix.arch }} ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
-            -e "ARCH=rpi5_64" \
+            -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system.log || true
+            make BR2_DL_DIR="/share/dl" system 2>&1 | tee system-${{ matrix.arch }}.log
 
       - name: Upload system artifact
-        if: |
-          inputs.force_system == 'true' || 
-          needs.detect_changes.outputs.needs_system == 'true' || 
-          inputs.build_target == 'system' || 
-          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
-          name: system-rpi5_64
+          name: ${{ matrix.artifact_name }}-${{ needs.detect_changes.outputs.diff_hash }}
           path: |
             buildroot/output
             buildroot/.config
-            system.log
+            system-${{ matrix.arch }}.log
           retention-days: 7
 
+      - name: Report status
+        run: |
+          echo "=== System ${{ matrix.arch }} Build Complete ==="
+          if [ -f "system-${{ matrix.arch }}.log" ]; then
+            echo "Last 10 lines of log:"
+            tail -10 system-${{ matrix.arch }}.log
+          fi
+
+  #############################################################################
+  # PHASE 5: BUILD PACKAGES (Parallel for each architecture)
+  #############################################################################
+  build_packages:
+    name: Build Packages ${{ matrix.arch }}
+    runs-on: ubuntu-latest
+    needs: [detect_changes, prepare_environment]
+    if: |
+      needs.detect_changes.outputs.needs_packages == 'true' ||
+      inputs.force_packages == 'true' ||
+      inputs.build_target == 'packages' ||
+      inputs.build_target == 'all'
+    matrix:
+      include:
+        - arch: x86_64
+          artifact_name: packages-x86_64
+        - arch: rpi5_64
+          artifact_name: packages-rpi5_64
+    env:
+      ARCH: ${{ matrix.arch }}
+      CACHE_KEY: packages-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detect_changes.outputs.packages_hash }}
+      FALLBACK_KEY: packages-${{ matrix.arch }}-${{ github.runner_os }}-
+    steps:
+      - name: Download environment artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: environment-${{ needs.prepare_environment.outputs.build_id }}
+          path: .
+
+      - name: Load Docker Image
+        run: docker load -i recalbox-build.tar
+
+      - name: Restore packages cache
+        if: ${{ !inputs.skip_cache }}
+        uses: actions/cache@v4
+        with:
+          path: buildroot/output
+          key: ${{ env.CACHE_KEY }}
+          restore-keys: ${{ env.FALLBACK_KEY }}
+
       - name: Build Packages
-        if: |
-          (inputs.force_packages == 'true' || 
-           needs.detect_changes.outputs.needs_packages == 'true' || 
-           inputs.build_target == 'packages' || 
-           inputs.build_target == 'all') &&
-          (steps.build_strategy.outputs.cache_restored != 'true' || needs.detect_changes.outputs.needs_packages == 'true')
         run: |
           set -euo pipefail
-          echo "=== Building Packages ==="
+          echo "=== Building Packages for ${{ matrix.arch }} ==="
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
-            -e "ARCH=rpi5_64" \
+            -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages.log || true
+            make BR2_DL_DIR="/share/dl" packages 2>&1 | tee packages-${{ matrix.arch }}.log
 
       - name: Upload packages artifact
-        if: |
-          inputs.force_packages == 'true' || 
-          needs.detect_changes.outputs.needs_packages == 'true' || 
-          inputs.build_target == 'packages' || 
-          inputs.build_target == 'all'
         uses: actions/upload-artifact@v4
         with:
-          name: packages-rpi5_64
+          name: ${{ matrix.artifact_name }}-${{ needs.detect_changes.outputs.diff_hash }}
           path: |
             buildroot/output
             buildroot/.config
-            packages.log
+            packages-${{ matrix.arch }}.log
           retention-days: 7
 
-      - name: Save build state for cache
-        uses: actions/upload-artifact@v4
-        with:
-          name: build-rpi5_64
-          path: |
-            buildroot/output
-            buildroot/.config
-          retention-days: 7
-
-      - name: Check if build was successful
+      - name: Report status
         run: |
-          echo "Build rpi5_64 completed"
-          if [ -f "toolchain.log" ]; then echo "Toolchain: $(tail -5 toolchain.log)"; fi
-          if [ -f "system.log" ]; then echo "System: $(tail -5 system.log)"; fi
-          if [ -f "packages.log" ]; then echo "Packages: $(tail -5 packages.log)"; fi
+          echo "=== Packages ${{ matrix.arch }} Build Complete ==="
+          if [ -f "packages-${{ matrix.arch }}.log" ]; then
+            echo "Last 10 lines of log:"
+            tail -10 packages-${{ matrix.arch }}.log
+          fi
 
+  #############################################################################
+  # PHASE 6: BUILD FINAL IMAGES (Parallel for each architecture)
+  #############################################################################
   build_image:
-    name: Build Final Images
+    name: Build Image ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    needs: [setup, detect_changes]
+    needs: [detect_changes, prepare_environment, build_toolchain, build_system, build_packages]
     if: |
-      (needs.detect_changes.outputs.needs_image == 'true' || 
-       inputs.build_target == 'image' || 
-       inputs.build_target == 'all') &&
-      (needs.build_x86_64.result == 'success' || needs.build_x86_64.result == 'skipped' || inputs.architectures == 'rpi5_64')
+      needs.detect_changes.outputs.needs_image == 'true' ||
+      inputs.build_target == 'image' ||
+      inputs.build_target == 'all'
+    matrix:
+      include:
+        - arch: x86_64
+          toolchain_artifact: toolchain-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
+          system_artifact: system-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
+          packages_artifact: packages-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
+          output_dir: dist-x86_64
+        - arch: rpi5_64
+          toolchain_artifact: toolchain-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
+          system_artifact: system-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
+          packages_artifact: packages-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
+          output_dir: dist-rpi5_64
+    env:
+      ARCH: ${{ matrix.arch }}
     steps:
-      - name: Download setup artifact
+      - name: Download environment artifact
         uses: actions/download-artifact@v4
         with:
-          name: setup-artifact
+          name: environment-${{ needs.prepare_environment.outputs.build_id }}
           path: .
 
       - name: Load Docker Image
         run: docker load -i recalbox-build.tar
 
-      - name: Get version info
-        id: version_vars
-        run: |
-          echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
-          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
-          echo "datetime=$(date '+%Y-%m-%d %H:%M:%S')" >> $GITHUB_OUTPUT
-
-      - name: Download x86_64 build artifacts
-        if: inputs.architectures != 'rpi5_64'
+      - name: Download toolchain artifact
+        if: needs.build_toolchain.outputs.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: build-x86_64
-          path: build-x86_64
-          merge-multiple: true
+          name: ${{ matrix.toolchain_artifact }}
+          path: .
         continue-on-error: true
 
-      - name: Download rpi5_64 build artifacts
-        if: inputs.architectures != 'x86_64'
+      - name: Download system artifact
+        if: needs.build_system.outputs.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: build-rpi5_64
-          path: build-rpi5_64
-          merge-multiple: true
+          name: ${{ matrix.system_artifact }}
+          path: .
         continue-on-error: true
 
-      - name: Build x86_64 Image
-        if: inputs.architectures != 'rpi5_64'
+      - name: Download packages artifact
+        if: needs.build_packages.outputs.result != 'skipped'
+        uses: actions/download-artifact@v4
+        with:
+          name: ${{ matrix.packages_artifact }}
+          path: .
+        continue-on-error: true
+
+      - name: Prepare build directory
         run: |
           set -euo pipefail
-          
-          if [ -d "build-x86_64/output" ]; then
-            cp -r build-x86_64/output buildroot/
-            cp build-x86_64/.config buildroot/ 2>/dev/null || true
-          fi
-          
-          OUTPUTDIR="$(pwd)/output"
-          mkdir -p "${OUTPUTDIR}"
-
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/work" \
-            -v "${OUTPUTDIR}:/work/output" \
-            -e "ARCH=x86_64" \
-            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.slug }} (${{ github.run_id }})" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "RECALBOX_CCACHE_ENABLED=1" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-x86_64.log || true
-
-      - name: Prepare x86_64 Artifacts
-        if: inputs.architectures != 'rpi5_64'
-        run: |
-          set -euo pipefail
-          if [ -f "output/images/recalbox/recalbox.img" ]; then
-            mkdir -p dist/x86_64
-            cp output/images/recalbox/* dist/x86_64/
-            cp build-x86_64.log dist/x86_64/build.log
-            cd dist/x86_64
-            sha256sum * > SHA256SUMS.txt
-          fi
-
-      - name: Build RPi5 Image
-        if: inputs.architectures != 'x86_64'
-        run: |
-          set -euo pipefail
-          
           rm -rf buildroot/output buildroot/.config 2>/dev/null || true
           
-          if [ -d "build-rpi5_64/output" ]; then
-            cp -r build-rpi5_64/output buildroot/
-            cp build-rpi5_64/.config buildroot/ 2>/dev/null || true
+          for dir in buildroot/output buildroot/.config; do
+            if [ -d "$dir" ]; then
+              echo "Found existing $dir"
+            fi
+          done
+          
+          if [ -d "output" ]; then
+            cp -r output buildroot/ 2>/dev/null || true
           fi
+          if [ -f ".config" ]; then
+            cp .config buildroot/ 2>/dev/null || true
+          fi
+
+      - name: Build Final Image
+        run: |
+          set -euo pipefail
           
           OUTPUTDIR="$(pwd)/output"
           mkdir -p "${OUTPUTDIR}"
-
+          
+          echo "=== Building Final Image for ${{ matrix.arch }} ==="
+          
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/work" \
             -v "${OUTPUTDIR}:/work/output" \
-            -e "ARCH=rpi5_64" \
-            -e "RECALBOX_VERSION=${{ steps.version_vars.outputs.date }} ${{ steps.version_vars.outputs.slug }} (${{ github.run_id }})" \
+            -e "ARCH=${{ matrix.arch }}" \
+            -e "RECALBOX_VERSION=${{ needs.prepare_environment.outputs.date }} ${{ needs.prepare_environment.outputs.slug }} (${{ github.run_id }})" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-rpi5_64.log || true
+            make BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
 
-      - name: Prepare RPi5 Artifacts
-        if: inputs.architectures != 'x86_64'
+      - name: Prepare artifacts
         run: |
           set -euo pipefail
           if [ -f "output/images/recalbox/recalbox.img" ]; then
-            mkdir -p dist/rpi5_64
-            cp output/images/recalbox/* dist/rpi5_64/
-            cp build-rpi5_64.log dist/rpi5_64/build.log
-            cd dist/rpi5_64
+            mkdir -p ${{ matrix.output_dir }}
+            cp output/images/recalbox/* ${{ matrix.output_dir }}/
+            cp build-${{ matrix.arch }}.log ${{ matrix.output_dir }}/build.log
+            cd ${{ matrix.output_dir }}
             sha256sum * > SHA256SUMS.txt
+            echo "=== ${{ matrix.arch }} Artifacts ==="
+            ls -lh
+          else
+            echo "Warning: No image generated for ${{ matrix.arch }}"
+            ls -la output/images/ 2>/dev/null || echo "No output/images directory"
           fi
 
-      - name: Verify Builds
-        run: |
-          echo "=== x86_64 ==="
-          ls -lh dist/x86_64/ 2>/dev/null || echo "No x86_64 artifacts"
-          echo ""
-          echo "=== rpi5_64 ==="
-          ls -lh dist/rpi5_64/ 2>/dev/null || echo "No rpi5_64 artifacts"
-
-      - name: Upload All Artifacts
+      - name: Upload image artifact
         uses: actions/upload-artifact@v4
         with:
-          name: recalbox-final-images
+          name: image-${{ matrix.arch }}-${{ needs.detect_changes.outputs.diff_hash }}
           path: |
-            dist/
+            ${{ matrix.output_dir }}/
           retention-days: 7
 
-      - name: Install GH CLI
+  #############################################################################
+  # PHASE 7: VALIDATE & RELEASE
+  #############################################################################
+  validate_and_release:
+    name: Validate and Release
+    runs-on: ubuntu-latest
+    needs: [prepare_environment, build_image]
+    if: always()
+    steps:
+      - name: Download all image artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Display build artifacts
+        run: |
+          echo "=== Build Artifacts ==="
+          for arch in x86_64 rpi5_64; do
+            echo ""
+            echo "=== $arch ==="
+            if [ -d "dist-$arch" ]; then
+              ls -lh dist-$arch/
+              if [ -f "dist-$arch/SHA256SUMS.txt" ]; then
+                echo "SHA256SUMS:"
+                cat dist-$arch/SHA256SUMS.txt
+              fi
+            else
+              echo "No artifacts for $arch"
+            fi
+          done
+
+      - name: Verify images
+        run: |
+          echo "=== Image Verification ==="
+          for arch in x86_64 rpi5_64; do
+            ARCH_DIR="dist-$arch"
+            if [ -f "$ARCH_DIR/recalbox.img" ]; then
+              SIZE=$(stat -c%s "$ARCH_DIR/recalbox.img")
+              echo "$arch: recalbox.img ($SIZE bytes) - OK"
+            else
+              echo "$arch: No image found"
+            fi
+          done
+
+      - name: Install GitHub CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
         with:
-          gh-cli-version: 2.65.0
+          gh-cli-version: ${{ env.GH_CLI_VERSION }}
 
       - name: Create GitHub Releases
+        if: needs.build_image.outputs.result == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_BASE="${{ steps.version_vars.outputs.slug }}-${{ github.run_number }}"
+          TAG_BASE="${{ needs.prepare_environment.outputs.slug }}-${{ needs.prepare_environment.outputs.date }}"
           
-          for ARCH in x86_64 rpi5_64; do
-            ARCH_DIR="dist/${ARCH}"
+          for arch in x86_64 rpi5_64; do
+            ARCH_DIR="dist-$arch"
             if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
-              TAG="${ARCH}-${TAG_BASE}"
-              echo "Creating release for ${ARCH}..."
+              TAG="${arch}-${TAG_BASE}"
+              echo "Creating release for ${arch}..."
               
               cat > release_notes.md << EOF
-              # Recalbox ${ARCH} Build
+              # Recalbox ${arch} Build
 
-              **Build Date:** ${{ steps.version_vars.outputs.datetime }}
-              **Architecture:** ${ARCH}
+              **Build Date:** ${{ needs.prepare_environment.outputs.datetime }}
+              **Architecture:** ${arch}
               **Commit:** ${github.sha}
               **Workflow:** #${github.run_number}
 
@@ -769,11 +686,31 @@ jobs:
               done
 
               echo "" >> release_notes.md
-              echo "## Build Log" >> release_notes.md
-              echo "See attached build.log for full build details." >> release_notes.md
+              echo "## Build Information" >> release_notes.md
+              echo "- Diff Hash: \`${{ needs.detect_changes.outputs.diff_hash }}\`" >> release_notes.md
+              echo "- Toolchain Hash: \`${{ needs.detect_changes.outputs.toolchain_hash }}\`" >> release_notes.md
+              echo "- System Hash: \`${{ needs.detect_changes.outputs.system_hash }}\`" >> release_notes.md
+              echo "- Packages Hash: \`${{ needs.detect_changes.outputs.packages_hash }}\`" >> release_notes.md
 
               gh release create "${TAG}" "${ARCH_DIR}"/* \
-                --title "Recalbox ${ARCH} ${TAG_BASE}" \
+                --title "Recalbox ${arch} ${TAG_BASE}" \
                 --notes-file release_notes.md
+              
+              echo "Release created for $arch"
             fi
           done
+
+      - name: Generate build summary
+        run: |
+          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Component | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Detect Changes | ${{ needs.detect_changes.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Prepare Environment | ${{ needs.prepare_environment.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Toolchain | ${{ needs.build_toolchain.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build System | ${{ needs.build_system.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Packages | ${{ needs.build_packages.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build Image | ${{ needs.build_image.outputs.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Diff Hash:** \`${{ needs.detect_changes.outputs.diff_hash }}\`" >> $GITHUB_STEP_SUMMARY
