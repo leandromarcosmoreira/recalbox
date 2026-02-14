@@ -32,10 +32,6 @@ env:
   COMPOSE_DOCKER_CLI_BUILD: 1
   GH_CLI_VERSION: '2.65.0'
 
-concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.arch }}
-  cancel-in-progress: false
-
 jobs:
   detectar_estado:
     name: Verificar Estado
@@ -46,64 +42,161 @@ jobs:
       has_packages: ${{ steps.determinar.outputs.has_packages }}
       has_kernel: ${{ steps.determinar.outputs.has_kernel }}
       has_defconfig: ${{ steps.determinar.outputs.has_defconfig }}
+      has_prepare: ${{ steps.determinar.outputs.has_prepare }}
+      recalbox_arch: ${{ steps.mapeamento.outputs.linux_arch }}
     steps:
-      - uses: actions/checkout@v4
-
-      - name: Verificar artefatos existentes
-        id: verificar
+      - name: Mapeamento de arquitetura
+        id: mapeamento
         run: |
-          echo "Verificando artefatos para ${{ inputs.arch }}..."
+          ARCH="${{ inputs.arch }}"
+          case "$ARCH" in
+            x86_64)      LINUX_ARCH="x86_64" ;;
+            rpi5_64)     LINUX_ARCH="aarch64" ;;
+            rpi4_64)     LINUX_ARCH="aarch64" ;;
+            rpi3)        LINUX_ARCH="armv7" ;;
+            rpizero2)    LINUX_ARCH="armv7" ;;
+            rg353x)      LINUX_ARCH="aarch64" ;;
+            odroidgo2)   LINUX_ARCH="aarch64" ;;
+            *)           LINUX_ARCH="$ARCH" ;;
+          esac
+          echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
+          echo "Arquitetura: $ARCH -> $LINUX_ARCH"
+
+      - name: Obter lista de artefatos
+        id: listar
+        run: |
+          # Instalar aria2 se necessário
+          if ! command -v aria2c &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y aria2
+          fi
           
-          # Verificar cada estágio
-          for stage in prepare defconfig kernel packages image; do
-            echo "Checking $stage..."
-          done
+          if [ "${{ inputs.skip_cache }}" = "true" ]; then
+            echo "skip_cache=true" >> $GITHUB_OUTPUT
+            echo "skip_cache=true" >> /tmp/cache_status
+          fi
+          
+          ARCH="${{ inputs.arch }}"
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "force_rebuild=true" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Buscar artefatos via API do GitHub
+          curl -sL \
+            -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100" \
+            -o /tmp/artifacts.json
+          
+          ARTIFACTS=$(jq -r '.artifacts[] | "\(.name) \(.workflow_run.created_at)"' /tmp/artifacts.json 2>/dev/null || echo "")
+          
+          echo "Artefatos encontrados:"
+          echo "$ARTIFACTS"
+          echo "$ARTIFACTS" >> $GITHUB_OUTPUT
 
       - name: Determinar próximo estágio
         id: determinar
         run: |
-          echo "Determinando estágio inicial..."
+          # Instalar aria2 e jq
+          if ! command -v aria2c &> /dev/null; then
+            sudo apt-get update && sudo apt-get install -y aria2
+          fi
           
-          # Verificar se tem imagem final
-          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "imagem-${{ inputs.arch }}"; then
+          ARCH="${{ inputs.arch }}"
+          
+          # Force rebuild ignora todos os caches
+          if [ "${{ inputs.force_rebuild }}" = "true" ]; then
+            echo "stage=prepare" >> $GITHUB_OUTPUT
+            echo "has_prepare=false" >> $GITHUB_OUTPUT
+            echo "has_defconfig=false" >> $GITHUB_OUTPUT
+            echo "has_kernel=false" >> $GITHUB_OUTPUT
+            echo "has_packages=false" >> $GITHUB_OUTPUT
+            echo "has_image=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Skip cache ignora apenas os estágios intermediários
+          if [ "${{ inputs.skip_cache }}" = "true" ]; then
+            echo "stage=defconfig" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=false" >> $GITHUB_OUTPUT
+            echo "has_kernel=false" >> $GITHUB_OUTPUT
+            echo "has_packages=false" >> $GITHUB_OUTPUT
+            echo "has_image=false" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          
+          # Download lista de artefatos usando aria2c
+          aria2c --quiet=true \
+            --header="Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+            --header="Accept: application/vnd.github+json" \
+            -d /tmp -o artifacts.json \
+            "https://api.github.com/repos/${{ github.repository }}/actions/artifacts?per_page=100"
+          
+          RESPONSE=$(cat /tmp/artifacts.json)
+          
+          # Verificar imagem final
+          if echo "$RESPONSE" | jq -r '.artifacts[] | .name' 2>/dev/null | grep -q "^imagem-${ARCH}$"; then
             echo "has_image=true" >> $GITHUB_OUTPUT
-            echo "Imagem já existe!"
+            echo "has_packages=true" >> $GITHUB_OUTPUT
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
             echo "stage=done" >> $GITHUB_OUTPUT
+            echo "Imagem final já existe!"
             exit 0
           fi
           echo "has_image=false" >> $GITHUB_OUTPUT
           
           # Verificar packages
-          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-packages-${{ inputs.arch }}"; then
+          if echo "$RESPONSE" | jq -r '.artifacts[] | .name' 2>/dev/null | grep -q "^build-packages-${ARCH}$"; then
             echo "has_packages=true" >> $GITHUB_OUTPUT
-            echo "stage=stage_5" >> $GITHUB_OUTPUT
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+            echo "stage=image" >> $GITHUB_OUTPUT
+            echo "Packages já existem!"
             exit 0
           fi
           echo "has_packages=false" >> $GITHUB_OUTPUT
           
           # Verificar kernel
-          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-kernel-${{ inputs.arch }}"; then
+          if echo "$RESPONSE" | jq -r '.artifacts[] | .name' 2>/dev/null | grep -q "^build-kernel-${ARCH}$"; then
             echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "stage=stage_4" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+            echo "stage=packages" >> $GITHUB_OUTPUT
+            echo "Kernel já existe!"
             exit 0
           fi
           echo "has_kernel=false" >> $GITHUB_OUTPUT
           
           # Verificar defconfig
-          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "buildroot-defconfig-${{ inputs.arch }}"; then
+          if echo "$RESPONSE" | jq -r '.artifacts[] | .name' 2>/dev/null | grep -q "^buildroot-defconfig-${ARCH}$"; then
             echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "stage=stage_3" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+            echo "stage=kernel" >> $GITHUB_OUTPUT
+            echo "Defconfig já existe!"
             exit 0
           fi
           echo "has_defconfig=false" >> $GITHUB_OUTPUT
           
-          echo "stage=stage_1" >> $GITHUB_OUTPUT
+          # Verificar prepare
+          if echo "$RESPONSE" | jq -r '.artifacts[] | .name' 2>/dev/null | grep -q "^buildroot-prepare-${ARCH}$"; then
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+            echo "stage=defconfig" >> $GITHUB_OUTPUT
+            echo "Prepare já existe!"
+            exit 0
+          fi
+          echo "has_prepare=false" >> $GITHUB_OUTPUT
+          
+          echo "stage=prepare" >> $GITHUB_OUTPUT
 
   prepare:
     name: "[1/5] Preparar Ambiente"
     runs-on: ubuntu-latest
     needs: detectar_estado
-    if: needs.detectar_estado.outputs.stage == 'stage_1' || needs.detectar_estado.outputs.stage == 'stage_2' || needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
+    if: needs.detectar_estado.outputs.stage == 'prepare'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -147,7 +240,7 @@ jobs:
     name: "[2/5] Configurar Build"
     runs-on: ubuntu-latest
     needs: [prepare, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == 'stage_2' || needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
+    if: needs.detectar_estado.outputs.stage != 'done'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -183,7 +276,7 @@ jobs:
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
-            -e "ARCH=${{ inputs.arch }}" \
+            -e "ARCH=${{ needs.detectar_estado.outputs.recalbox_arch }}" \
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
             -e "O=/recalbox/output" \
@@ -205,7 +298,7 @@ jobs:
     name: "[3/5] Compilar Kernel"
     runs-on: ubuntu-latest
     needs: [defconfig, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
+    if: needs.detectar_estado.outputs.stage != 'done'
     steps:
       - uses: actions/checkout@v4
 
@@ -231,7 +324,7 @@ jobs:
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
-            -e "ARCH=${{ inputs.arch }}" \
+            -e "ARCH=${{ needs.detectar_estado.outputs.recalbox_arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
@@ -254,7 +347,7 @@ jobs:
     name: "[4/5] Compilar Pacotes"
     runs-on: ubuntu-latest
     needs: [kernel, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
+    if: needs.detectar_estado.outputs.stage != 'done'
     steps:
       - uses: actions/checkout@v4
 
@@ -280,7 +373,7 @@ jobs:
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
-            -e "ARCH=${{ inputs.arch }}" \
+            -e "ARCH=${{ needs.detectar_estado.outputs.recalbox_arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -e "BR2_EXTERNAL=/recalbox" \
@@ -304,7 +397,7 @@ jobs:
     name: "[5/5] Gerar Imagem"
     runs-on: ubuntu-latest
     needs: [packages, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == 'stage_5'
+    if: needs.detectar_estado.outputs.stage != 'done'
     steps:
       - uses: actions/checkout@v4
 
@@ -329,7 +422,7 @@ jobs:
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
-            -e "ARCH=${{ inputs.arch }}" \
+            -e "ARCH=${{ needs.detectar_estado.outputs.recalbox_arch }}" \
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
             -e "O=/recalbox/output" \
@@ -360,7 +453,7 @@ jobs:
   completo:
     name: Build Completo
     runs-on: ubuntu-latest
-    needs: [gen_image, detectar_estado]
+    needs: detectar_estado
     if: needs.detectar_estado.outputs.stage == 'done'
     steps:
       - name: Verificar imagem existente
