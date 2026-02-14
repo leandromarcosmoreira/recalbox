@@ -125,41 +125,30 @@ jobs:
           
           RESPONSE=$(cat /tmp/artifacts.json)
           
-          # Debug: listar todos os artefatos
-          echo "Artefatos para $ARCH:" >> $GITHUB_STEP_SUMMARY
-          echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep "$ARCH" >> $GITHUB_STEP_SUMMARY || true
+          # Extrair lista de nomes
+          ARTIFACTS=$(echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null)
           
-          # Verificar artefatos um por um (primeiro match wins)
-          if echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -qF "imagem-${ARCH}"; then
+          echo "Artefatos: $ARTIFACTS" >> $GITHUB_STEP_SUMMARY
+          
+          # Verificar artefatos - definir stage baseado no que existe
+          if echo "$ARTIFACTS" | grep -q "^imagem-${ARCH}$"; then
             echo "stage=done" >> $GITHUB_OUTPUT
             echo "has_image=true" >> $GITHUB_OUTPUT
-            echo "DETECTED: imagem" >> $GITHUB_STEP_SUMMARY
-          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -qF "build-packages-${ARCH}"; then
+          elif echo "$ARTIFACTS" | grep -q "^build-packages-${ARCH}$"; then
             echo "stage=image" >> $GITHUB_OUTPUT
-            echo "has_packages=true" >> $GITHUB_OUTPUT
-            echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            echo "DETECTED: packages" >> $GITHUB_STEP_SUMMARY
-          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -qF "build-kernel-${ARCH}"; then
+          elif echo "$ARTIFACTS" | grep -q "^build-kernel-${ARCH}$"; then
             echo "stage=packages" >> $GITHUB_OUTPUT
-            echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            echo "DETECTED: kernel" >> $GITHUB_STEP_SUMMARY
-          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -qF "buildroot-defconfig-${ARCH}"; then
+          elif echo "$ARTIFACTS" | grep -q "^buildroot-defconfig-${ARCH}$"; then
             echo "stage=kernel" >> $GITHUB_OUTPUT
-            echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            echo "DETECTED: defconfig" >> $GITHUB_STEP_SUMMARY
-          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -qF "buildroot-prepare-${ARCH}"; then
+          elif echo "$ARTIFACTS" | grep -q "^buildroot-prepare-${ARCH}$"; then
             echo "stage=defconfig" >> $GITHUB_OUTPUT
-            echo "has_prepare=true" >> $GITHUB_OUTPUT
-            echo "DETECTED: prepare" >> $GITHUB_STEP_SUMMARY
           else
             echo "stage=prepare" >> $GITHUB_OUTPUT
-            echo "DETECTED: nothing, starting from scratch" >> $GITHUB_STEP_SUMMARY
           fi
+          
+          # Debug
+          STAGE=$(cat $GITHUB_OUTPUT | grep stage= | tail -1 | cut -d= -f2)
+          echo "STAGE: $STAGE" >> $GITHUB_STEP_SUMMARY
 
   prepare:
     name: "[1/5] Preparar Ambiente"
@@ -351,7 +340,7 @@ jobs:
             -e "BR2_DL_DIR=/recalbox/dl" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" 2>&1 | tee packages.log
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" all 2>&1 | tee packages.log
 
       - name: Salvar cache packages
         uses: actions/upload-artifact@v4

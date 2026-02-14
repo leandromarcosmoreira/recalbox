@@ -19,13 +19,13 @@ chmod -R 777 output build dl 2>/dev/null || true
 echo "=== Output directory ==="
 ls -la output/ 2>/dev/null || echo "No output dir"
 
-# Run build
-echo "=== Running make ==="
+# Run build - compile all packages then create image
+echo "=== Running make all ==="
 make -C buildroot \
     BR2_DL_DIR="$BR2_DL_DIR" \
     BR2_EXTERNAL="$BR2_EXTERNAL" \
     O="$O" \
-    RECALBOX_IMAGES="recalbox" 2>&1 | tee /recalbox/build.log
+    all 2>&1 | tee /recalbox/build.log
 
 BUILD_STATUS=${PIPESTATUS[0]}
 echo "Build exit status: $BUILD_STATUS"
