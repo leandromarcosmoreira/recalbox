@@ -1,520 +1,401 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Recalbox - O console retrogaming tudo-em-um</title>
-    <meta name="description" content="Recalbox é a plataforma ultimate de retrogaming que permite jogar todos os jogos, consoles e computadores da sua infância">
+    <title>Recalbox - Download</title>
     
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Open+Sans:wght@400;600;700&family=Rajdhani:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Open+Sans:wght@400;600;700&display=swap" rel="stylesheet">
     
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
-
-        :root {
-            --primary: #7750f8;
-            --primary-dark: #5338ad;
-            --secondary: #40d04f;
-            --dark: #161b28;
-            --darker: #0d1117;
-            --card-bg: #1d2333;
-            --light: rgba(255, 255, 255, 0.75);
-            --gray: rgba(255, 255, 255, 0.6);
-        }
-
+        html { box-sizing: border-box; -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale }
+        *, *::after, *::before { box-sizing: inherit }
         body {
-            font-family: 'Open Sans', sans-serif;
-            background-color: var(--dark);
-            color: var(--light);
+            color: rgba(255,255,255,.75);
+            margin: 0;
             font-size: 1.05rem;
+            font-family: 'Open Sans', sans-serif;
+            font-weight: 400;
             line-height: 1.43;
-            min-height: 100vh;
+            background-color: #161b28
         }
-
-        h1, h2, h3, h4, h5, h6 {
-            font-family: 'Rajdhani', sans-serif;
-            font-weight: 600;
-        }
-
-        .navbar {
-            position: fixed;
-            top: 0;
-            left: 0;
-            right: 0;
-            background: rgba(22, 27, 40, 0.95);
-            backdrop-filter: blur(10px);
-            padding: 15px 40px;
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            z-index: 1000;
-            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .logo {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-            font-family: 'Rajdhani', sans-serif;
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: var(--primary);
-            text-decoration: none;
-        }
-
-        .logo-icon {
-            width: 40px;
-            height: 40px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 10px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            color: white;
-            font-size: 1.5rem;
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 30px;
-            list-style: none;
-        }
-
-        .nav-links a {
-            color: var(--light);
-            text-decoration: none;
-            font-family: 'Rajdhani', sans-serif;
-            font-weight: 500;
-            font-size: 1.1rem;
-            text-transform: uppercase;
-            letter-spacing: 0.5px;
-            transition: color 0.3s;
-        }
-
-        .nav-links a:hover {
-            color: var(--secondary);
-        }
-
-        .hero {
-            padding: 180px 20px 100px;
-            text-align: center;
-            background: linear-gradient(180deg, var(--dark) 0%, rgba(119, 80, 248, 0.1) 50%, var(--dark) 100%);
-        }
-
-        .hero h1 {
-            font-size: 3.5rem;
-            margin-bottom: 20px;
-            color: white;
-        }
-
-        .hero h1 span {
-            color: var(--primary);
-        }
-
-        .hero p {
-            font-size: 1.3rem;
-            color: var(--gray);
-            margin-bottom: 40px;
-            max-width: 600px;
+        @media (min-width:600px){body{font-size:1.049rem}}
+        @media (min-width:960px){body{font-size:1.049rem}}
+        @media (min-width:1280px){body{font-size:1.049rem}}
+        
+        a { color: #40d04f; font-weight: 700; text-decoration: none }
+        a:hover { text-decoration: underline }
+        p { margin: 0 }
+        h1, h2, h3, h4, h5, h6 { font-family: 'Rajdhani', sans-serif; font-weight: 600; line-height: 1.2; margin: 0 }
+        
+        .MuiContainer-root {
+            width: 100%;
             margin-left: auto;
             margin-right: auto;
+            padding: 24px
         }
-
-        .cta-buttons {
+        @media (min-width:600px){.MuiContainer-root{max-width:600px}}
+        @media (min-width:960px){.MuiContainer-root{max-width:960px}}
+        @media (min-width:1280px){.MuiContainer-root{max-width:1280px}}
+        
+        .MuiGrid-root {
             display: flex;
-            gap: 20px;
-            justify-content: center;
             flex-wrap: wrap;
+            width: 100%;
+            margin: -12px
         }
-
-        .btn {
-            display: inline-block;
-            padding: 12px 35px;
+        .MuiGrid-item {
+            padding: 12px;
+            width: 100%
+        }
+        @media (min-width:600px){.MuiGrid-item{width: 100%}}
+        @media (min-width:960px){.MuiGrid-item{width: 50%}}
+        @media (min-width:1280px){.MuiGrid-item{width: 33.333333%}}
+        
+        .MuiPaper-root {
+            color: rgba(255,255,255,.75);
+            background-color: #1d2333;
             border-radius: 10px;
-            text-decoration: none;
+            overflow: hidden
+        }
+        
+        .MuiCard-root {
+            overflow: hidden;
+            border-radius: 10px;
+            height: 100%
+        }
+        
+        .MuiCardActionArea-root {
+            width: 100%;
+            display: block;
+            text-align: inherit
+        }
+        .MuiCardActionArea-root:hover {
+            text-decoration: none
+        }
+        
+        .MuiCardMedia-root {
+            background-size: cover;
+            background-repeat: no-repeat;
+            background-position: center;
+            height: 200px
+        }
+        
+        .MuiCardContent-root {
+            padding: 16px
+        }
+        
+        .MuiTypography-h2 {
+            font-size: 2.5rem
+        }
+        @media (min-width:600px){.MuiTypography-h2{font-size: 2.0833rem}}
+        @media (min-width:960px){.MuiTypography-h2{font-size: 2.2917rem}}
+        @media (min-width:1280px){.MuiTypography-h2{font-size: 2.5rem}}
+        
+        .MuiTypography-h3 {
+            font-size: 1.5625rem
+        }
+        
+        .MuiTypography-body1 {
+            font-size: 1rem
+        }
+        @media (min-width:960px){.MuiTypography-body1{font-size: 1.1667rem}}
+        
+        .MuiTypography-button {
             font-family: 'Rajdhani', sans-serif;
-            font-weight: 600;
-            font-size: 1.1rem;
+            font-weight: 500;
             text-transform: uppercase;
             letter-spacing: 0.5px;
-            transition: all 0.3s;
+            font-size: 0.875rem
+        }
+        
+        .MuiButton-root {
+            color: rgba(255,255,255,.75);
+            padding: 8px 16px;
+            border-radius: 10px;
+            font-family: 'Rajdhani', sans-serif;
+            font-weight: 500;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
             cursor: pointer;
             border: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center
         }
-
-        .btn-primary {
-            background: var(--primary);
-            color: white;
+        
+        .MuiButton-containedSecondary {
+            background-color: #40d04f;
+            color: #000;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2)
         }
-
-        .btn-primary:hover {
-            background: var(--primary-dark);
-            transform: translateY(-2px);
-            box-shadow: 0 5px 20px rgba(119, 80, 248, 0.4);
+        .MuiButton-containedSecondary:hover {
+            background-color: #2c9137
         }
-
-        .btn-secondary {
-            background: transparent;
-            color: var(--secondary);
-            border: 2px solid var(--secondary);
+        
+        .css-1ovcs6r {
+            height: 100%
         }
-
-        .btn-secondary:hover {
-            background: var(--secondary);
-            color: var(--dark);
-            transform: translateY(-2px);
+        
+        .css-gxvkym {
+            height: 200px
         }
-
-        .selection-section {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 60px 20px;
+        
+        .section-purple {
+            background: linear-gradient(135deg, #4a148c 0%, #7b59ff 100%);
+            padding: 80px 24px;
+            text-align: center
         }
-
-        .section-title {
-            text-align: center;
-            font-size: 2.5rem;
-            margin-bottom: 50px;
-            color: white;
+        
+        .section-dark {
+            background-color: #161b28;
+            padding: 80px 24px
         }
-
-        .hardware-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 25px;
-            padding: 20px;
-        }
-
-        .hardware-card {
-            background: var(--card-bg);
+        
+        .btn-go {
+            margin-top: 2em;
+            padding: 12px 32px;
+            font-size: 1rem;
+            background-color: #40d04f;
+            color: #000;
+            border: none;
             border-radius: 10px;
-            padding: 30px;
-            text-decoration: none;
-            color: inherit;
-            display: block;
-            transition: all 0.3s;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .hardware-card:hover {
-            transform: translateY(-5px);
-            border-color: var(--primary);
-            box-shadow: 0 10px 30px rgba(119, 80, 248, 0.2);
-        }
-
-        .hardware-icon {
-            width: 80px;
-            height: 80px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, var(--primary), var(--secondary));
-            border-radius: 15px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        }
-
-        .hardware-icon svg {
-            width: 40px;
-            height: 40px;
-            fill: white;
-        }
-
-        .hardware-card h3 {
-            font-size: 1.4rem;
-            margin-bottom: 10px;
-            color: white;
-            text-align: center;
-        }
-
-        .hardware-card p {
-            color: var(--gray);
-            font-size: 0.95rem;
-            text-align: center;
-        }
-
-        .features {
-            max-width: 1200px;
-            margin: 0 auto;
-            padding: 80px 20px;
-            background: linear-gradient(180deg, transparent 0%, rgba(119, 80, 248, 0.05) 50%, transparent 100%);
-        }
-
-        .features-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-            gap: 30px;
-        }
-
-        .feature-item {
-            text-align: center;
-            padding: 30px;
-            background: var(--card-bg);
-            border-radius: 10px;
-            border: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        .feature-icon {
-            width: 70px;
-            height: 70px;
-            margin: 0 auto 20px;
-            background: linear-gradient(135deg, rgba(119, 80, 248, 0.2), rgba(64, 208, 79, 0.2));
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 2rem;
-        }
-
-        .feature-item h4 {
-            font-size: 1.3rem;
-            margin-bottom: 10px;
-            color: white;
-        }
-
-        .feature-item p {
-            color: var(--gray);
-            font-size: 0.95rem;
-        }
-
-        .steps {
-            max-width: 900px;
-            margin: 0 auto;
-            padding: 80px 20px;
-        }
-
-        .step {
-            display: flex;
-            gap: 25px;
-            margin-bottom: 40px;
-            align-items: flex-start;
-        }
-
-        .step-number {
-            width: 50px;
-            height: 50px;
-            background: var(--primary);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
             font-family: 'Rajdhani', sans-serif;
-            font-size: 1.5rem;
-            font-weight: bold;
-            color: white;
-            flex-shrink: 0;
-        }
-
-        .step-content h4 {
-            font-size: 1.3rem;
-            margin-bottom: 8px;
-            color: white;
-        }
-
-        .step-content p {
-            color: var(--gray);
-        }
-
-        footer {
-            background: var(--darker);
-            padding: 40px 20px;
-            text-align: center;
-            border-top: 1px solid rgba(255, 255, 255, 0.1);
-        }
-
-        footer p {
-            color: var(--gray);
-            margin-bottom: 10px;
-        }
-
-        footer a {
-            color: var(--secondary);
-            text-decoration: none;
-        }
-
-        .badge {
-            display: inline-block;
-            background: var(--secondary);
-            color: var(--dark);
-            padding: 4px 12px;
-            border-radius: 20px;
-            font-size: 0.8rem;
             font-weight: 600;
-            margin-bottom: 15px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            cursor: pointer
         }
-
-        @media (max-width: 768px) {
-            .hero h1 {
-                font-size: 2.5rem;
-            }
-            
-            .nav-links {
-                display: none;
-            }
-            
-            .navbar {
-                padding: 15px 20px;
-            }
-            
-            .cta-buttons {
-                flex-direction: column;
-                align-items: center;
-            }
+        .btn-go:hover {
+            background-color: #2c9137;
+            text-decoration: none
+        }
+        
+        .hero-text {
+            font-size: 3rem;
+            color: #fff;
+            margin-bottom: 16px
+        }
+        
+        .hero-subtitle {
+            font-size: 1.25rem;
+            color: rgba(255,255,255,.8);
+            max-width: 600px;
+            margin: 0 auto 24px
+        }
+        
+        .card-title {
+            font-size: 1.5rem;
+            color: #fff;
+            margin-bottom: 8px
+        }
+        
+        .card-desc {
+            color: rgba(255,255,255,.7)
+        }
+        
+        footer {
+            background-color: #0d1117;
+            padding: 40px 24px;
+            text-align: center
+        }
+        
+        footer p {
+            color: rgba(255,255,255,.6);
+            margin-bottom: 8px
         }
     </style>
 </head>
 <body>
-    <nav class="navbar">
-        <a href="/" class="logo">
-            <div class="logo-icon">R</div>
-            Recalbox
-        </a>
-        <ul class="nav-links">
-            <li><a href="/">Início</a></li>
-            <li><a href="#download">Downloads</a></li>
-            <li><a href="#install">Instalação</a></li>
-        </ul>
-    </nav>
+    <!-- Hero Section -->
+    <div class="section-purple">
+        <h1 class="hero-text">Are you ready to play?</h1>
+        <p class="hero-subtitle">Recalbox is THE ultimate retrogaming platform that allows you to replay all the games, consoles and computers of your childhood</p>
+        <a href="#download" class="btn-go">Go to step 1 - Choose your hardware</a>
+    </div>
 
-    <section class="hero">
-        <h1>Recalbox <span>10.0</span></h1>
-        <p>A plataforma definitiva de retrogaming que permite jogar todos os jogos, consoles e computadores da sua infância</p>
-        <div class="cta-buttons">
-            <a href="#download" class="btn btn-primary">Baixar Agora</a>
-            <a href="https://wiki.recalbox.com/" target="_blank" class="btn btn-secondary">Documentação</a>
+    <!-- Download Section -->
+    <div class="section-dark" id="download">
+        <div class="MuiContainer-root">
+            <h2 style="text-align: center; color: #fff; margin-bottom: 48px; font-size: 2.5rem;">Choose your hardware</h2>
+            
+            <div class="MuiGrid-root">
+                <!-- PC -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="pc.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #7b59ff, #4a148c); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M4 6h16v10H4V6zm0 12h16v2H4v-2zm2-14h12v2H6V4z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">PC</h3>
+                                <p class="card-desc">For PC and notebooks with Intel or AMD processor</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Raspberry Pi 5 -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="rpi5.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #40d04f, #1b5e20); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Raspberry Pi 5</h3>
+                                <p class="card-desc">For Raspberry Pi 5 (8GB recommended)</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Raspberry Pi 4 -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="rpi4.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #f44336, #b71c1c); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Raspberry Pi 4</h3>
+                                <p class="card-desc">For Raspberry Pi 4 (4GB or 8GB)</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Raspberry Pi 3 -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="rpi3.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #ff9800, #e65100); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Raspberry Pi 3</h3>
+                                <p class="card-desc">For Raspberry Pi 3B/B+</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Raspberry Pi Zero 2 -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="rpizero2.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #9c27b0, #4a148c); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Raspberry Pi Zero 2</h3>
+                                <p class="card-desc">For Raspberry Pi Zero 2 W</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Anbernic RG353X -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="rg353x.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #00bcd4, #006064); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Anbernic RG353X</h3>
+                                <p class="card-desc">For handheld Anbernic RG353X/V</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Odroid Go Advance -->
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root">
+                        <a href="odroidgo2.html" class="MuiCardActionArea-root">
+                            <div class="MuiCardMedia-root css-gxvkym" style="background: linear-gradient(135deg, #3f51b5, #1a237e); display: flex; align-items: center; justify-content: center;">
+                                <svg width="64" height="64" viewBox="0 0 24 24" fill="#fff"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2z"/></svg>
+                            </div>
+                            <div class="MuiCardContent-root">
+                                <h3 class="card-title">Odroid Go Advance</h3>
+                                <p class="card-desc">For Odroid Go Advance / Black</p>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+            </div>
         </div>
-    </section>
+    </div>
 
-    <section class="selection-section" id="download">
-        <h2 class="section-title">Escolha seu hardware</h2>
-        <div class="hardware-grid">
-            <a href="pc.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M4 6h16v10H4V6zm0 12h16v2H4v-2zm2-14h12v2H6V4z"/></svg>
+    <!-- Features Section -->
+    <div class="section-purple">
+        <div class="MuiContainer-root">
+            <h2 style="text-align: center; color: #fff; margin-bottom: 48px; font-size: 2.5rem;">The retro console with a twist</h2>
+            
+            <div class="MuiGrid-root">
+                <div class="MuiGrid-item" style="width: 100%">
+                    <div style="text-align: center; color: rgba(255,255,255,.9);">
+                        <h3 style="font-size: 1.5rem; margin-bottom: 16px;">🎮 Instant Save</h3>
+                        <p style="font-size: 1.1rem;">Never lose your progress again. Save states instantly with a single button press.</p>
+                    </div>
                 </div>
-                <span class="badge">PC</span>
-                <h3>Computador</h3>
-                <p>Para PCs e notebooks com processador Intel ou AMD</p>
-            </a>
-            <a href="rpi5.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                <div class="MuiGrid-item" style="width: 100%">
+                    <div style="text-align: center; color: rgba(255,255,255,.9);">
+                        <h3 style="font-size: 1.5rem; margin-bottom: 16px;">⏪ Rewind</h3>
+                        <p style="font-size: 1.1rem;">Made a mistake? Rewind time and try again. Every game is rewindable!</p>
+                    </div>
                 </div>
-                <span class="badge">Raspberry Pi</span>
-                <h3>Raspberry Pi 5</h3>
-                <p>Para Raspberry Pi 5 (8GB recomendado)</p>
-            </a>
-            <a href="rpi4.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8zm-1-13h2v6h-2zm0 8h2v2h-2z"/></svg>
+                <div class="MuiGrid-item" style="width: 100%">
+                    <div style="text-align: center; color: rgba(255,255,255,.9);">
+                        <h3 style="font-size: 1.5rem; margin-bottom: 16px;">📺 Overlays</h3>
+                        <p style="font-size: 1.1rem;">Enhance your retro gaming experience with bezel overlays and scanlines.</p>
+                    </div>
                 </div>
-                <span class="badge">Raspberry Pi</span>
-                <h3>Raspberry Pi 4</h3>
-                <p>Para Raspberry Pi 4 (4GB ou 8GB)</p>
-            </a>
-            <a href="rpi3.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z"/></svg>
-                </div>
-                <span class="badge">Raspberry Pi</span>
-                <h3>Raspberry Pi 3</h3>
-                <p>Para Raspberry Pi 3B/B+</p>
-            </a>
-            <a href="rpizero2.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 14c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/></svg>
-                </div>
-                <span class="badge">Raspberry Pi</span>
-                <h3>Raspberry Pi Zero 2</h3>
-                <p>Para Raspberry Pi Zero 2 W</p>
-            </a>
-            <a href="rg353x.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2zm4.5 2c-.83 0-1.5-.67-1.5-1.5s.67-1.5 1.5-1.5 1.5.67 1.5 1.5-.67 1.5-1.5 1.5zm4-3c-.83 0-1.5-.67-1.5-1.5S18.67 9 19.5 9s1.5.67 1.5 1.5-.67 1.5-1.5 1.5z"/></svg>
-                </div>
-                <span class="badge">Handheld</span>
-                <h3>Anbernic RG353X</h3>
-                <p>Para handheld Anbernic RG353X/V</p>
-            </a>
-            <a href="odroidgo2.html" class="hardware-card">
-                <div class="hardware-icon">
-                    <svg viewBox="0 0 24 24"><path d="M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm-10 7H8v3H6v-3H3v-2h3V8h2v3h3v2z"/></svg>
-                </div>
-                <span class="badge">Handheld</span>
-                <h3>Odroid Go Advance</h3>
-                <p>Para Odroid Go Advance / Black</p>
-            </a>
+            </div>
         </div>
-    </section>
+    </div>
 
-    <section class="features">
-        <h2 class="section-title">Mais de 100 sistemas compatíveis</h2>
-        <div class="features-grid">
-            <div class="feature-item">
-                <div class="feature-icon">🎮</div>
-                <h4>Consoles</h4>
-                <p>Nintendo, Sega, Sony, Atari e muito mais</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">💾</div>
-                <h4>Arcades</h4>
-                <p>MAME, Neo-Geo e milhares de jogos arcade</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">🖥️</div>
-                <h4>Computadores</h4>
-                <p>Amiga, Spectrum, C64, MSX e outros</p>
-            </div>
-            <div class="feature-item">
-                <div class="feature-icon">⚡</div>
-                <h4>Fácil de Usar</h4>
-                <p>Interface simples e intuitiva</p>
-            </div>
-        </div>
-    </section>
-
-    <section class="steps" id="install">
-        <h2 class="section-title">Como instalar</h2>
-        <div class="step">
-            <div class="step-number">1</div>
-            <div class="step-content">
-                <h4>Baixe a imagem</h4>
-                <p>Escolha o modelo do seu hardware e baixe a imagem do Recalbox</p>
+    <!-- Installation Section -->
+    <div class="section-dark">
+        <div class="MuiContainer-root">
+            <h2 style="text-align: center; color: #fff; margin-bottom: 48px; font-size: 2.5rem;">Where do I get started?</h2>
+            
+            <div class="MuiGrid-root">
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root css-1ovcs6r">
+                        <div class="MuiCardContent-root">
+                            <h3 class="card-title">1. Choose your hardware</h3>
+                            <p class="card-desc">Select your device from the list above and download the image.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root css-1ovcs6r">
+                        <div class="MuiCardContent-root">
+                            <h3 class="card-title">2. Flash your SD card</h3>
+                            <p class="card-desc">Use BalenaEtcher or Raspberry Pi Imager to flash the image.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="MuiGrid-item">
+                    <div class="MuiPaper-root MuiCard-root css-1ovcs6r">
+                        <div class="MuiCardContent-root">
+                            <h3 class="card-title">3. Boot and play!</h3>
+                            <p class="card-desc">Connect your controller and start playing immediately.</p>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
-        <div class="step">
-            <div class="step-number">2</div>
-            <div class="step-content">
-                <h4>Descompacte</h4>
-                <p>Extraia o arquivo .img.gz obtendo o arquivo .img</p>
-            </div>
-        </div>
-        <div class="step">
-            <div class="step-number">3</div>
-            <div class="step-content">
-                <h4>Grave no cartão</h4>
-                <p>Use BalenaEtcher ou Raspberry Pi Imager para gravar em um SD card ou USB</p>
-            </div>
-        </div>
-        <div class="step">
-            <div class="step-number">4</div>
-            <div class="step-content">
-                <h4>Boot e aproveite!</h4>
-                <p>Conecte o armazenamento ao seu dispositivo e initialize o Recalbox</p>
-            </div>
-        </div>
-    </section>
+    </div>
 
     <footer>
-        <p>Recalbox - O console retrogaming tudo-em-um</p>
-        <p>Builds gerados automaticamente via <a href="https://github.com/leandromarcosmoreira/recalbox/actions">GitHub Actions</a></p>
-        <p>Este não é o Recalbox oficial. Para a versão oficial, visite <a href="https://www.recalbox.com/">recalbox.com</a></p>
+        <p><strong>Recalbox</strong> - The ultimate retrogaming platform</p>
+        <p>This is an unofficial download page. For official Recalbox, visit <a href="https://www.recalbox.com/">recalbox.com</a></p>
+        <p>Builds automatically generated via GitHub Actions</p>
     </footer>
 </body>
 </html>
