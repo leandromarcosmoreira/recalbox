@@ -401,7 +401,12 @@ jobs:
             -e "USER=root" \
             -u root:root \
             recalbox-build:latest \
-            bash -c "chmod -R 777 /recalbox/output /recalbox/buildroot && make -C buildroot BR2_DL_DIR='/recalbox/dl' RECALBOX_IMAGES='recalbox' 2>&1" | tee image.log
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" RECALBOX_IMAGES="recalbox" || true
+          
+          if [ -f "output/images/recalbox/recalbox.img" ]; then
+            cp output/images/recalbox/* . 2>/dev/null || true
+            ls -la output/images/ 2 echo "Sem>/dev/null || imagens"
+          fi
 
       - name: Preparar artefatos
         run: |
