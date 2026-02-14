@@ -1,6 +1,10 @@
-recalbox
-=======
-![](https://s3-eu-west-1.amazonaws.com/forums.recalbox.com/8d81e556-aefb-4729-ad2f-9d7386eff4cd.png)
+# Recalbox
+
+![Recalbox Logo](https://s3-eu-west-1.amazonaws.com/forums.recalbox.com/8d81e556-aefb-4729-ad2f-9d7386eff4cd.png)
+
+[![GitHub Releases](https://img.shields.io/github/v/release/leandromarcosmoreira/recalbox?include_prereleases&label=Release)](https://github.com/leandromarcosmoreira/recalbox/releases)
+[![GitHub Actions Workflow](https://github.com/leandromarcosmoreira/recalbox/actions/workflows/build-recalbox.yml/badge.svg)](https://github.com/leandromarcosmoreira/recalbox/actions)
+[![GitHub Pages](https://img.shields.io/badge/Downloads-GitHub%20Pages-purple)](https://leandromarcosmoreira.github.io/recalbox/)
 
 > **Nota**: Este repositório é um fork de [https://github.com/recalbox/recalbox-os](https://github.com/recalbox/recalbox-os).
 
@@ -12,14 +16,70 @@ O Recalbox é um projeto open source. Esperamos que você contribua e nos ajude 
 Porém, se você estiver trabalhando em um fork, por respeito ao nosso trabalho, pedimos que não integre nosso trabalho em andamento localizado em branches diferentes da master.
 Obrigado por aguardar um merge na branch master.
 
-NOVO: integramos projetos externos neste repositório. O Recalbox agora é um monorepo. Isso significa:
-- você pode fazer alterações em todas as partes do Recalbox (buildroot, frontend, configgen...) em uma única alteração
-- o pipeline agora testa cada projeto antes da compilação
-- referências de commits não são mais necessárias em `packages.mk`
+## Download de Builds Prontos
 
-Por favor, use o rastreador de issues deste repositório para reportar bugs ou solicitar recursos.
+### Builds Automáticos via GitHub Actions
+
+Este repositório possui pipelines de CI/CD que compilam automaticamente o Recalbox para múltiplas arquiteturas:
+
+| Arquitetura | Hardware | Status |
+|-------------|----------|--------|
+| `x86_64` | PC (Intel/AMD) | ✅ |
+| `rpi5_64` | Raspberry Pi 5 | ✅ |
+| `rpi4_64` | Raspberry Pi 4 | ✅ |
+| `rpi3` | Raspberry Pi 3B/B+ | ✅ |
+| `rpizero2` | Raspberry Pi Zero 2 W | ✅ |
+| `rg353x` | Anbernic RG353X/V | ✅ |
+| `odroidgo2` | Odroid Go Advance/Black | ✅ |
+
+#### Como Baixar
+
+1. Acesse a página de downloads: **[leandromarcosmoreira.github.io/recalbox/](https://leandromarcosmoreira.github.io/recalbox/)**
+2. Selecione seu hardware
+3. Baixe a imagem mais recente
+
+#### ou via GitHub Releases
+
+Acesse a página de [Releases](https://github.com/leandromarcosmoreira/recalbox/releases) para baixar imagens diretamente.
+
+## Configurações Especiais
+
+### Recalbox Business (4K)
+
+Este repositório inclui configurações especiais para:
+
+- **Recalbox Business 4K**: Versão otimizada para TVs 4K com resolução superior
+- **Configurações Premium**: Inclui pacotes adicionais para uso comercial
+
+As configurações estão disponíveis em `configs/recalbox-*_defconfig`:
+
+| Arquitetura | Defconfig Normal | Defconfig Business |
+|-------------|------------------|-------------------|
+| x86_64 | recalbox-x86_64_defconfig | recalbox-x86_64_business_defconfig |
+| rpi5_64 | recalbox-rpi5_64_defconfig | recalbox-rpi5_64_business_defconfig |
+| rpi4_64 | recalbox-rpi4_64_defconfig | recalbox-rpi4_64_business_defconfig |
+| rpi3 | recalbox-rpi3_defconfig | recalbox-rpi3_business_defconfig |
+
+### Compilar versão Business
+
+```bash
+export ARCH="rpi5_64"
+./scripts/linux/recaldocker.sh make "recalbox-${ARCH}_business_defconfig"
+./scripts/linux/recaldocker.sh
+```
+
+## Arquiteturas Suportadas
+
+- **x86_64**: PCs e notebooks Intel/AMD
+- **rpi5_64**: Raspberry Pi 5 (8GB recomendado)
+- **rpi4_64**: Raspberry Pi 4 (4GB ou 8GB)
+- **rpi3**: Raspberry Pi 3B/B+
+- **rpizero2**: Raspberry Pi Zero 2 W
+- **rg353x**: Anbernic RG353X/V
+- **odroidgo2**: Odroid Go Advance/Black
 
 ## Projetos Recalbox
+
 - recalbox: este repositório contém o código-fonte para compilar o Recalbox.
 - [emulationstation](./projects/frontend/): o frontend EmulationStation para Recalbox.
 - [configgen](./projects/frontend/): a ferramenta para configuração automática de joystick.
@@ -28,12 +88,11 @@ Por favor, use o rastreador de issues deste repositório para reportar bugs ou s
 - [wpaf](./projects/wpaf/): gerenciador de ventilador.
 - [piboy](./projects/piboy/): detector PiBoy DMG.
 
-
 ## Links úteis
+
 - [www.recalbox.com](https://www.recalbox.com): o site oficial do Recalbox.
 - [Wiki do Recalbox](https://wiki.recalbox.com): a wiki do Recalbox.
 - [forum.recalbox.com](https://forum.recalbox.com): fórum do Recalbox. Você encontrará suporte lá.
-
 
 # Como compilar (apenas Linux)
 
@@ -46,13 +105,13 @@ Certifique-se de que seu usuário pertence ao grupo docker -> `sudo usermod -a -
 Clone o repositório (substitua `<sua-url-do-repo>` adequadamente):
 
 ```bash
-ARCH="rpi4_64" && git clone --recurse-submodules <sua-url-do-repo> recalbox-${ARCH}
+ARCH="rpi5_64" && git clone --recurse-submodules <sua-url-do-repo> recalbox-${ARCH}
 ```
 
 **Compile** o Recalbox:
 
 ```bash
-export ARCH="rpi4_64"
+export ARCH="rpi5_64"
 cd recalbox-${ARCH}
 ./scripts/linux/recaldocker.sh
 ```
@@ -77,12 +136,12 @@ No diretório recalbox, você encontrará alguns diretórios criados pela compil
 
 Usando os argumentos da linha de comando, você pode passar um comando personalizado para executar:
 ```bash
-ARCH=rpi4_64 && ./scripts/linux/recaldocker.sh make menuconfig
+ARCH=rpi5_64 && ./scripts/linux/recaldocker.sh make menuconfig
 ```
 
 Dessa forma, você pode executar o menuconfig para configurar o sistema. Se você nunca compilou o sistema, use o seguinte comando para criar a configuração padrão para sua placa:
 ```bash
-ARCH=rpi4_64 && ./scripts/linux/recaldocker.sh make "recalbox-${ARCH}_defconfig" && make menuconfig
+ARCH=rpi5_64 && ./scripts/linux/recaldocker.sh make "recalbox-${ARCH}_defconfig" && make menuconfig
 ```
 
 Seu comando substituirá o comando de compilação padrão da imagem Docker, então você pode precisar copiar e colar algumas variáveis dela.
@@ -112,4 +171,3 @@ Reinicie o Docker e tente novamente. Deve funcionar.
 sudo service docker restart
 docker build -t "recalbox-dev" .
 ```
-test
