@@ -243,22 +243,25 @@ jobs:
           retention-days: 7
 
   release:
-    name: Release
+    name: Criar Release
     runs-on: ubuntu-latest
-    needs: [preparar, build]
+    needs: [detectar_alteracoes, preparar, build]
     if: always()
+    outputs:
+      diff_hash: ${{ needs.detectar_alteracoes.outputs.diff_hash }}
     steps:
-      - name: Download artefatos
+      - name: Baixar artefatos de imagem
         uses: actions/download-artifact@v4
         with:
           path: dist
+          pattern: imagem-*
           merge-multiple: true
 
-      - name: Mostrar artefatos
+      - name: Mostrar artefatos baixados
         run: |
           for arch in x86_64 rpi5_64; do
             echo "=== $arch ==="
-            ls -lh dist-$arch/ 2>/dev/null || echo "Sem artefatos"
+            ls -lh dist-$arch/ 2>/dev/null || echo "Sem artefatos para $arch"
           done
 
       - name: Instalar GH CLI
@@ -272,34 +275,88 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           VERSION="${{ needs.preparar.outputs.date }}"
+          DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
+          COMMIT="${{ github.sha }}"
           
           for arch in x86_64 rpi5_64; do
             ARCH_DIR="dist-$arch"
-            ARCH_TAG=$(echo "$arch" | sed 's/_/./g')
+            
+            ARCH_DISPLAY=""
+            ARCH_DESCRIPTION=""
+            case "$arch" in
+              x86_64)
+                ARCH_DISPLAY="PC (x86_64)"
+                ARCH_DESCRIPTION="Para PCs e notebooks com processador Intel ou AMD"
+                ;;
+              rpi5_64)
+                ARCH_DISPLAY="Raspberry Pi 5"
+                ARCH_DESCRIPTION="Para Raspberry Pi 5 (8GB recomendado)"
+                ;;
+            esac
             
             if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
-              TAG="v${VERSION}-${ARCH_TAG}"
+              TAG="v${VERSION}-${arch}"
               echo "Criando release: $TAG"
               
+              FILE_SIZE=$(stat -c%s "$ARCH_DIR/recalbox.img" | numfmt --to=iec-i --suffix=B)
+              
               cat > notas_release.md << 'EOFRELEASE'
-              # Build Recalbox
-
-              ## Downloads
-
-              | Arquivo | SHA256 |
-              |---------|--------|
+              # Recalbox - O console retrogaming tudo-em-um
+              
+              ## Instale em seu hardware
+              
+              Versão gratuita do Recalbox para instalação em seu hardware!
+              
+              ## Requisitos do Sistema
+              
               EOFRELEASE
-
+              
+              echo "**Arquitetura:** ${ARCH_DISPLAY}" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "${ARCH_DESCRIPTION}" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "---" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "## Downloads" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "| Arquivo | Tamanho | SHA256 |" >> notas_release.md
+              echo "|---------|---------|--------|" >> notas_release.md
+              
               for f in "$ARCH_DIR"/*.img "$ARCH_DIR"/*.zip; do
                 if [ -f "$f" ]; then
+                  FILENAME=$(basename "$f")
+                  FILESIZE=$(stat -c%s "$f" | numfmt --to=iec-i --suffix=B)
                   SHASUM=$(sha256sum "$f" | cut -d' ' -f1)
-                  echo "| $(basename $f) | \`$SHASUM\` |" >> notas_release.md
+                  echo "| ${FILENAME} | ${FILESIZE} | \`${SHASUM}\` |" >> notas_release.md
                 fi
               done
-
+              
+              echo "" >> notas_release.md
+              echo "---" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "## Informações do Build" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "- **Versão:** ${VERSION}" >> notas_release.md
+              echo "- **Data:** ${DATETIME}" >> notas_release.md
+              echo "- **Commit:** \`${COMMIT:0:8}\`" >> notas_release.md
+              echo "- **Workflow:** #${GITHUB_RUN_NUMBER}" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "---" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "## Como Instalar" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "1. Baixe a imagem para sua arquitetura" >> notas_release.md
+              echo "2. Descompacte o arquivo .img.gz" >> notas_release.md
+              echo "3. Use obalenaEtcher ou Raspberry Pi Imager para gravar em um SD card ou USB" >> notas_release.md
+              echo "4. Boot e aproveite!" >> notas_release.md
+              echo "" >> notas_release.md
+              echo "Para mais informações, visite: [wiki.recalbox.com](https://wiki.recalbox.com/)" >> notas_release.md
+              
               gh release create "$TAG" "$ARCH_DIR"/* \
-                --title "Recalbox $VERSION ($arch)" \
+                --title "Recalbox ${VERSION} (${ARCH_DISPLAY})" \
                 --notes-file notas_release.md
+                
+              echo "Release criado para $arch"
             fi
           done
 

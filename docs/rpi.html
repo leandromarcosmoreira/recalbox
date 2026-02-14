@@ -1,0 +1,554 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baixar Recalbox para Raspberry Pi 5 - Recalbox</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --secondary: #0f3460;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #eaeaea;
+            --gray: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--darker) 100%);
+            min-height: 100vh;
+            color: var(--light);
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .logo svg {
+            height: 40px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .breadcrumb {
+            padding: 20px 40px;
+            color: var(--gray);
+        }
+
+        .breadcrumb a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .breadcrumb a:hover {
+            text-decoration: underline;
+        }
+
+        .container {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 20px 40px 60px;
+        }
+
+        .header {
+            text-align: center;
+            margin-bottom: 50px;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+
+        .header p {
+            color: var(--gray);
+            font-size: 1.1rem;
+        }
+
+        .download-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px;
+            border: 2px solid var(--primary);
+        }
+
+        .version-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .version {
+            font-size: 1.8rem;
+            font-weight: bold;
+        }
+
+        .version span {
+            color: var(--primary);
+        }
+
+        .date {
+            color: var(--gray);
+        }
+
+        .download-buttons {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 30px;
+            flex-wrap: wrap;
+        }
+
+        .download-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            background: var(--primary);
+            color: white;
+            padding: 15px 30px;
+            border-radius: 10px;
+            text-decoration: none;
+            font-weight: bold;
+            font-size: 1.1rem;
+            transition: all 0.3s;
+        }
+
+        .download-btn:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+        }
+
+        .download-btn.secondary {
+            background: transparent;
+            border: 2px solid var(--primary);
+        }
+
+        .download-btn.secondary:hover {
+            background: var(--primary);
+        }
+
+        .file-info {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .file-info h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .file-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 10px 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .file-row:last-child {
+            border-bottom: none;
+        }
+
+        .file-label {
+            color: var(--gray);
+        }
+
+        .file-value {
+            font-family: 'Courier New', monospace;
+            word-break: break-all;
+            text-align: right;
+            max-width: 60%;
+        }
+
+        .checksum-box {
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+            padding: 20px;
+            margin-top: 20px;
+        }
+
+        .checksum-box h4 {
+            color: var(--primary);
+            margin-bottom: 15px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .checksum-box code {
+            display: block;
+            background: rgba(233, 69, 96, 0.1);
+            padding: 12px;
+            border-radius: 5px;
+            font-family: 'Courier New', monospace;
+            font-size: 0.85rem;
+            word-break: break-all;
+            color: var(--light);
+        }
+
+        .copy-btn {
+            background: var(--primary);
+            border: none;
+            color: white;
+            padding: 5px 12px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.8rem;
+            margin-left: 10px;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 60px;
+            color: var(--gray);
+        }
+
+        .loading-spinner {
+            border: 3px solid rgba(255, 255, 255, 0.1);
+            border-top: 3px solid var(--primary);
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .error {
+            background: rgba(255, 0, 0, 0.1);
+            border: 1px solid #ff4444;
+            border-radius: 10px;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .error h3 {
+            color: #ff4444;
+            margin-bottom: 10px;
+        }
+
+        .requirements {
+            margin-top: 40px;
+        }
+
+        .requirements h3 {
+            font-size: 1.3rem;
+            margin-bottom: 15px;
+        }
+
+        .requirements ul {
+            list-style: none;
+        }
+
+        .requirements li {
+            padding: 8px 0;
+            padding-left: 25px;
+            position: relative;
+        }
+
+        .requirements li::before {
+            content: "✓";
+            color: var(--primary);
+            position: absolute;
+            left: 0;
+        }
+
+        footer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        footer p {
+            color: var(--gray);
+        }
+
+        @media (max-width: 768px) {
+            .container {
+                padding: 20px 20px 60px;
+            }
+            
+            .header h1 {
+                font-size: 1.8rem;
+            }
+            
+            .download-card {
+                padding: 25px;
+            }
+            
+            .file-value {
+                max-width: 100%;
+                margin-top: 5px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <a href="index.html" class="logo">
+            <svg viewBox="0 0 100 60" fill="currentColor">
+                <path d="M50 5 C75 5 95 25 95 30 C95 55 75 55 50 55 C25 55 5 55 5 30 C5 25 25 5 50 5" fill="#e94560"/>
+                <text x="50" y="38" text-anchor="middle" fill="white" font-size="20" font-weight="bold">R</text>
+            </svg>
+            Recalbox
+        </a>
+        <ul class="nav-links">
+            <li><a href="index.html">Início</a></li>
+            <li><a href="pc.html">PC</a></li>
+            <li><a href="rpi.html">Raspberry Pi</a></li>
+        </ul>
+    </nav>
+
+    <div class="breadcrumb">
+        <a href="index.html">Início</a> / Raspberry Pi 5
+    </div>
+
+    <div class="container">
+        <div class="header">
+            <h1>Recalbox para Raspberry Pi 5</h1>
+            <p>Para Raspberry Pi 5 (8GB recomendado)</p>
+        </div>
+
+        <div id="content">
+            <div class="loading">
+                <div class="loading-spinner"></div>
+                <p>Carregando releases...</p>
+            </div>
+        </div>
+
+        <div class="requirements">
+            <h3>Requisitos do Sistema</h3>
+            <ul>
+                <li>Raspberry Pi 5</li>
+                <li>8GB de RAM (mínimo 4GB)</li>
+                <li>Cartão SD de 16GB ou mais (classe 10)</li>
+                <li>Fonte de alimentação oficial Raspberry Pi 5A</li>
+            </ul>
+        </div>
+    </div>
+
+    <footer>
+        <p>Recalbox - O console retrogaming tudo-em-um</p>
+        <p>Builds gerados automaticamente via GitHub Actions</p>
+    </footer>
+
+    <script>
+        const REPO_OWNER = 'leandromarcosmoreira';
+        const REPO_NAME = 'recalbox';
+        const ARCH_FILTER = 'rpi5_64';
+
+        async function fetchLatestRelease() {
+            const contentDiv = document.getElementById('content');
+
+            try {
+                const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases?per_page=10`);
+                
+                if (!response.ok) {
+                    throw new Error(`Erro ao carregar releases: ${response.status}`);
+                }
+
+                const releases = await response.json();
+                const release = releases.find(r => !r.draft && !r.prerelease && r.tag_name.includes(ARCH_FILTER));
+
+                if (!release) {
+                    contentDiv.innerHTML = `
+                        <div class="error">
+                            <h3>Nenhum release encontrado</h3>
+                            <p>Não há builds disponíveis para esta arquitetura ainda.</p>
+                            <a href="index.html" class="download-btn" style="margin-top: 20px;">Voltar</a>
+                        </div>
+                    `;
+                    return;
+                }
+
+                const assets = release.assets.filter(a => 
+                    a.name.endsWith('.img') || 
+                    a.name.endsWith('.img.gz') ||
+                    a.name.endsWith('.zip')
+                );
+
+                const imgAsset = assets.find(a => a.name.endsWith('.img.gz') || a.name.endsWith('.img'));
+                const zipAsset = assets.find(a => a.name.endsWith('.zip'));
+
+                let downloadButtons = '';
+                if (imgAsset) {
+                    downloadButtons += `
+                        <a href="${imgAsset.browser_download_url}" class="download-btn" download>
+                            <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+                            </svg>
+                            Baixar imagem (${formatSize(imgAsset.size)})
+                        </a>
+                    `;
+                }
+                if (zipAsset) {
+                    downloadButtons += `
+                        <a href="${zipAsset.browser_download_url}" class="download-btn secondary" download>
+                            Baixar ZIP (${formatSize(zipAsset.size)})
+                        </a>
+                    `;
+                }
+
+                const publishedDate = new Date(release.published_at).toLocaleDateString('pt-BR', {
+                    day: 'numeric',
+                    month: 'long',
+                    year: 'numeric'
+                });
+
+                let checksumHtml = '';
+                if (imgAsset) {
+                    const sha256 = await fetchChecksum(imgAsset.name, release);
+                    if (sha256) {
+                        checksumHtml = `
+                            <div class="checksum-box">
+                                <h4>
+                                    Verificação SHA256
+                                    <button class="copy-btn" onclick="copyChecksum('${sha256}')">Copiar</button>
+                                </h4>
+                                <code id="checksum-${imgAsset.name}">${sha256}</code>
+                            </div>
+                        `;
+                    }
+                }
+
+                contentDiv.innerHTML = `
+                    <div class="download-card">
+                        <div class="version-info">
+                            <div class="version">Versão <span>${release.tag_name}</span></div>
+                            <div class="date">${publishedDate}</div>
+                        </div>
+                        
+                        <div class="download-buttons">
+                            ${downloadButtons}
+                        </div>
+
+                        <div class="file-info">
+                            <h4>Informações do Arquivo</h4>
+                            ${imgAsset ? `
+                            <div class="file-row">
+                                <span class="file-label">Arquivo</span>
+                                <span class="file-value">${imgAsset.name}</span>
+                            </div>
+                            <div class="file-row">
+                                <span class="file-label">Tamanho</span>
+                                <span class="file-value">${formatSize(imgAsset.size)}</span>
+                            </div>
+                            ` : ''}
+                            <div class="file-row">
+                                <span class="file-label">Downloads</span>
+                                <span class="file-value">${release.assets.reduce((sum, a) => sum + a.download_count, 0)}</span>
+                            </div>
+                        </div>
+
+                        ${checksumHtml}
+                    </div>
+                `;
+
+            } catch (error) {
+                contentDiv.innerHTML = `
+                    <div class="error">
+                        <h3>Erro ao carregar</h3>
+                        <p>${error.message}</p>
+                        <button class="download-btn" onclick="fetchLatestRelease()" style="margin-top: 20px;">Tentar novamente</button>
+                    </div>
+                `;
+            }
+        }
+
+        async function fetchChecksum(assetName, release) {
+            const checksumFile = 'SHA256SUMS.txt';
+            
+            try {
+                const response = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/releases/tags/${release.tag_name}`);
+                if (response.ok) {
+                    const data = await response.json();
+                    const checksumAsset = data.assets.find(a => a.name === checksumFile);
+                    if (checksumAsset) {
+                        const checksumUrl = checksumAsset.browser_download_url;
+                        const checksumResponse = await fetch(checksumUrl);
+                        if (checksumResponse.ok) {
+                            const text = await checksumResponse.text();
+                            for (const line of text.split('\n')) {
+                                if (line.includes(assetName.replace('.gz', ''))) {
+                                    return line.trim().split(/\s+/)[0];
+                                }
+                            }
+                        }
+                    }
+                }
+            } catch (e) {
+                console.log('Could not fetch checksum:', e);
+            }
+            return null;
+        }
+
+        function formatSize(bytes) {
+            const units = ['B', 'KB', 'MB', 'GB'];
+            let size = bytes;
+            let unitIndex = 0;
+            
+            while (size >= 1024 && unitIndex < units.length - 1) {
+                size /= 1024;
+                unitIndex++;
+            }
+            
+            return `${size.toFixed(1)} ${units[unitIndex]}`;
+        }
+
+        function copyChecksum(text) {
+            navigator.clipboard.writeText(text).then(() => {
+                alert('Checksum copiado!');
+            });
+        }
+
+        fetchLatestRelease();
+    </script>
+</body>
+</html>

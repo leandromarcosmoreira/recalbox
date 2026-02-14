@@ -1,0 +1,399 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baixar Recalbox - O console retrogaming tudo-em-um</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #e94560;
+            --primary-dark: #c73e54;
+            --secondary: #0f3460;
+            --dark: #1a1a2e;
+            --darker: #16213e;
+            --light: #eaeaea;
+            --gray: #a0a0a0;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, var(--dark) 0%, var(--darker) 100%);
+            min-height: 100vh;
+            color: var(--light);
+            line-height: 1.6;
+        }
+
+        .navbar {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 15px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            backdrop-filter: blur(10px);
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: var(--primary);
+        }
+
+        .logo svg {
+            height: 40px;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 25px;
+            list-style: none;
+        }
+
+        .nav-links a {
+            color: var(--light);
+            text-decoration: none;
+            font-weight: 500;
+            transition: color 0.3s;
+        }
+
+        .nav-links a:hover {
+            color: var(--primary);
+        }
+
+        .hero {
+            text-align: center;
+            padding: 80px 20px;
+            background: linear-gradient(180deg, transparent 0%, rgba(233, 69, 96, 0.1) 100%);
+        }
+
+        .hero h1 {
+            font-size: 3.5rem;
+            margin-bottom: 15px;
+            background: linear-gradient(90deg, var(--primary), #ff6b6b);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .hero p {
+            font-size: 1.4rem;
+            color: var(--gray);
+            margin-bottom: 40px;
+        }
+
+        .hero-cta {
+            display: inline-block;
+            background: var(--primary);
+            color: white;
+            padding: 15px 40px;
+            border-radius: 50px;
+            text-decoration: none;
+            font-size: 1.2rem;
+            font-weight: bold;
+            transition: all 0.3s;
+            box-shadow: 0 4px 20px rgba(233, 69, 96, 0.4);
+        }
+
+        .hero-cta:hover {
+            background: var(--primary-dark);
+            transform: translateY(-2px);
+            box-shadow: 0 6px 25px rgba(233, 69, 96, 0.5);
+        }
+
+        .selection-section {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .selection-title {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .hardware-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+            gap: 30px;
+            padding: 20px;
+        }
+
+        .hardware-card {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 20px;
+            padding: 40px 30px;
+            text-align: center;
+            transition: all 0.3s;
+            border: 2px solid transparent;
+            cursor: pointer;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .hardware-card:hover {
+            transform: translateY(-10px);
+            border-color: var(--primary);
+            box-shadow: 0 20px 40px rgba(233, 69, 96, 0.2);
+        }
+
+        .hardware-icon {
+            width: 120px;
+            height: 120px;
+            margin: 0 auto 25px;
+            background: linear-gradient(135deg, var(--secondary), var(--dark));
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .hardware-icon svg {
+            width: 60px;
+            height: 60px;
+            fill: var(--primary);
+        }
+
+        .hardware-card h3 {
+            font-size: 1.5rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .hardware-card p {
+            color: var(--gray);
+            font-size: 0.95rem;
+        }
+
+        .features {
+            max-width: 1000px;
+            margin: 0 auto;
+            padding: 60px 20px;
+        }
+
+        .features h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 30px;
+        }
+
+        .feature-item {
+            text-align: center;
+            padding: 30px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 15px;
+        }
+
+        .feature-icon {
+            font-size: 2.5rem;
+            margin-bottom: 15px;
+        }
+
+        .feature-item h4 {
+            font-size: 1.2rem;
+            margin-bottom: 10px;
+            color: var(--primary);
+        }
+
+        .feature-item p {
+            color: var(--gray);
+            font-size: 0.9rem;
+        }
+
+        footer {
+            background: rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            text-align: center;
+            margin-top: 60px;
+        }
+
+        footer p {
+            color: var(--gray);
+        }
+
+        footer a {
+            color: var(--primary);
+            text-decoration: none;
+        }
+
+        .steps {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px;
+        }
+
+        .steps h2 {
+            text-align: center;
+            font-size: 2rem;
+            margin-bottom: 40px;
+        }
+
+        .step {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 30px;
+            align-items: flex-start;
+        }
+
+        .step-number {
+            width: 50px;
+            height: 50px;
+            background: var(--primary);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+
+        .step-content h4 {
+            font-size: 1.2rem;
+            margin-bottom: 5px;
+        }
+
+        .step-content p {
+            color: var(--gray);
+        }
+
+        @media (max-width: 768px) {
+            .hero h1 {
+                font-size: 2.2rem;
+            }
+            
+            .nav-links {
+                display: none;
+            }
+            
+            .navbar {
+                padding: 15px 20px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="logo">
+            <svg viewBox="0 0 100 60" fill="currentColor">
+                <path d="M50 5 C75 5 95 25 95 30 C95 55 75 55 50 55 C25 55 5 55 5 30 C5 25 25 5 50 5" fill="#e94560"/>
+                <text x="50" y="38" text-anchor="middle" fill="white" font-size="20" font-weight="bold">R</text>
+            </svg>
+            Recalbox
+        </div>
+        <ul class="nav-links">
+            <li><a href="/">Início</a></li>
+            <li><a href="#hardware">Hardware</a></li>
+            <li><a href="#install">Instalação</a></li>
+        </ul>
+    </nav>
+
+    <section class="hero">
+        <h1>Recalbox 10.0</h1>
+        <p>O console retrogaming tudo-em-um</p>
+        <a href="#hardware" class="hero-cta">Baixar Agora</a>
+    </section>
+
+    <section class="selection-section" id="hardware">
+        <h2 class="selection-title">Em qual hardware você vai instalar?</h2>
+        <div class="hardware-grid">
+            <a href="pc.html" class="hardware-card">
+                <div class="hardware-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M4 6h16v10H4V6zm0 12h16v2H4v-2zm2-14h12v2H6V4z"/>
+                    </svg>
+                </div>
+                <h3>PC</h3>
+                <p>Para PCs e notebooks com processador Intel ou AMD</p>
+            </a>
+            <a href="rpi.html" class="hardware-card">
+                <div class="hardware-icon">
+                    <svg viewBox="0 0 24 24" fill="currentColor">
+                        <path d="M9.5 4C6.46 4 4 6.46 4 9.5S6.46 15 9.5 15 15 12.54 15 9.5 12.54 4 9.5 4zm0 7c-1.38 0-2.5-1.12-2.5-2.5S8.12 6 9.5 6 12 7.12 12 8.5 10.88 11 9.5 11zm5-7h4v2h-4v-2zm0 4h4v2h-4v-2z"/>
+                    </svg>
+                </div>
+                <h3>Raspberry Pi 5</h3>
+                <p>Para Raspberry Pi 5 (8GB recomendado)</p>
+            </a>
+        </div>
+    </section>
+
+    <section class="features">
+        <h2>Mais de 100 sistemas compatíveis</h2>
+        <div class="features-grid">
+            <div class="feature-item">
+                <div class="feature-icon">🎮</div>
+                <h4>Mais de 100 consoles</h4>
+                <p>Nintendo, Sega, Sony, Atari e muito mais</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">💾</div>
+                <h4>Arcades</h4>
+                <p>MAME, Neo-Geo e milhares de jogos arcade</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">🖥️</div>
+                <h4>Computadores</h4>
+                <p>Amiga, Spectrum, C64, MSX e outros</p>
+            </div>
+            <div class="feature-item">
+                <div class="feature-icon">⚡</div>
+                <h4>Fácil de usar</h4>
+                <p>Interface simples e intuitiva</p>
+            </div>
+        </div>
+    </section>
+
+    <section class="steps" id="install">
+        <h2>Como instalar</h2>
+        <div class="step">
+            <div class="step-number">1</div>
+            <div class="step-content">
+                <h4>Baixe a imagem</h4>
+                <p>Escolha o modelo do seu hardware e baixe a imagem</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number">2</div>
+            <div class="step-content">
+                <h4>Descompacte</h4>
+                <p>Extraia o arquivo .img.gz obtendo o arquivo .img</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number">3</div>
+            <div class="step-content">
+                <h4>Grave no cartão</h4>
+                <p>Use BalenaEtcher ou Raspberry Pi Imager para gravar em um SD card ou USB</p>
+            </div>
+        </div>
+        <div class="step">
+            <div class="step-number">4</div>
+            <div class="step-content">
+                <h4>Boot e aproveite!</h4>
+                <p>Conecte o armazenamento ao seu dispositivo e initialize o Recalbox</p>
+            </div>
+        </div>
+    </section>
+
+    <footer>
+        <p>Recalbox - O console retrogaming tudo-em-um</p>
+        <p>Builds gerados automaticamente via GitHub Actions</p>
+    </footer>
+</body>
+</html>
