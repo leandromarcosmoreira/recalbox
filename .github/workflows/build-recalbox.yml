@@ -401,19 +401,13 @@ jobs:
             -e "USER=root" \
             -u root:root \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" RECALBOX_IMAGES="recalbox" || true
-          
-          if [ -f "output/images/recalbox/recalbox.img" ]; then
-            cp output/images/recalbox/* . 2>/dev/null || true
-            ls -la output/images/ 2 echo "Sem>/dev/null || imagens"
-          fi
+            bash -c "chmod +x buildroot/support/scripts/* buildroot/scripts/* && make -C buildroot BR2_DL_DIR='/recalbox/dl' RECALBOX_IMAGES='recalbox'"
 
       - name: Preparar artefatos
         run: |
           if [ -f "output/images/recalbox/recalbox.img" ]; then
             mkdir -p dist-${{ inputs.arch }}
             cp output/images/recalbox/* dist-${{ inputs.arch }}/
-            cp image.log dist-${{ inputs.arch }}/
             cd dist-${{ inputs.arch }}
             sha256sum * > SHA256SUMS.txt
           else
