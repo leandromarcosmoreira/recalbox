@@ -4,17 +4,17 @@ on:
   workflow_dispatch:
     inputs:
       skip_cache:
-        description: 'Skip caches'
+        description: 'Pular caches'
         required: false
         default: 'false'
         type: boolean
       force_rebuild:
-        description: 'Force rebuild'
+        description: 'Forçar rebuild'
         required: false
         default: 'false'
         type: boolean
       architectures:
-        description: 'Architectures'
+        description: 'Arquiteturas'
         required: false
         default: 'x86_64'
         type: string
@@ -29,30 +29,30 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  detect_changes:
-    name: Detect Changes
+  detectar_alteracoes:
+    name: Detectar Alteracoes
     runs-on: ubuntu-latest
     outputs:
-      needs_toolchain: ${{ steps.detect.outputs.needs_toolchain }}
-      needs_system: ${{ steps.detect.outputs.needs_system }}
-      needs_packages: ${{ steps.detect.outputs.needs_packages }}
-      needs_image: ${{ steps.detect.outputs.needs_image }}
-      diff_hash: ${{ steps.detect.outputs.diff_hash }}
+      needs_toolchain: ${{ steps.detectar.outputs.needs_toolchain }}
+      needs_system: ${{ steps.detectar.outputs.needs_system }}
+      needs_packages: ${{ steps.detectar.outputs.needs_packages }}
+      needs_image: ${{ steps.detectar.outputs.needs_image }}
+      diff_hash: ${{ steps.detectar.outputs.diff_hash }}
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Get previous commit
-        id: prev_commit
+      - name: Obter commit anterior
+        id: commit_anterior
         run: |
           PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
           echo "prev_commit=$PREV_COMMIT" >> $GITHUB_OUTPUT
 
-      - name: Detect changes
-        id: detect
+      - name: Detectar alteracoes
+        id: detectar
         run: |
-          CHANGED_FILES=$(git diff --name-only ${{ steps.prev_commit.outputs.prev_commit }}...HEAD 2>/dev/null || echo "")
+          CHANGED_FILES=$(git diff --name-only ${{ steps.commit_anterior.outputs.prev_commit }}...HEAD 2>/dev/null || echo "")
           
           NEEDS_TOOLCHAIN=false
           NEEDS_SYSTEM=false
@@ -86,13 +86,13 @@ jobs:
           echo "needs_image=$NEEDS_IMAGE" >> $GITHUB_OUTPUT
           echo "diff_hash=${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
 
-  prepare:
-    name: Prepare Environment
+  preparar:
+    name: Preparar Ambiente
     runs-on: ubuntu-latest
-    needs: detect_changes
+    needs: detectar_alteracoes
     outputs:
-      date: ${{ steps.version.outputs.date }}
-      slug: ${{ steps.version.outputs.slug }}
+      date: ${{ steps.versao.outputs.date }}
+      slug: ${{ steps.versao.outputs.slug }}
       build_id: ${{ github.run_id }}
     steps:
       - uses: actions/checkout@v4
@@ -100,7 +100,7 @@ jobs:
           submodules: recursive
           fetch-depth: 1
 
-      - name: Ensure buildroot
+      - name: Garantir buildroot
         run: |
           if [ ! -d buildroot ]; then
             git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
@@ -109,13 +109,13 @@ jobs:
           git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
           git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
 
-      - name: Version info
-        id: version
+      - name: Info versao
+        id: versao
         run: |
           echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
           echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
 
-      - name: Cache buildroot downloads
+      - name: Cache downloads buildroot
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
@@ -128,10 +128,10 @@ jobs:
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: recalbox-ccache-${{ github.runner_os }}-${{ needs.detect_changes.outputs.diff_hash }}
+          key: recalbox-ccache-${{ github.runner_os }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
           restore-keys: recalbox-ccache-${{ github.runner_os }}-
 
-      - name: Build Docker image
+      - name: Build imagem Docker
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -141,13 +141,13 @@ jobs:
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
 
-      - name: Save Docker image
+      - name: Salvar imagem Docker
         run: docker save recalbox-build:latest -o recalbox-build.tar
 
-      - name: Upload environment
+      - name: Upload ambiente
         uses: actions/upload-artifact@v4
         with:
-          name: environment-${{ github.run_id }}
+          name: ambiente-${{ github.run_id }}
           path: |
             recalbox-build.tar
             buildroot/
@@ -156,12 +156,12 @@ jobs:
   build:
     name: Build ${{ matrix.arch }}
     runs-on: ubuntu-latest
-    needs: [detect_changes, prepare]
+    needs: [detectar_alteracoes, preparar]
     if: |
-      needs.detect_changes.outputs.needs_toolchain == 'true' ||
-      needs.detect_changes.outputs.needs_system == 'true' ||
-      needs.detect_changes.outputs.needs_packages == 'true' ||
-      needs.detect_changes.outputs.needs_image == 'true' ||
+      needs.detectar_alteracoes.outputs.needs_toolchain == 'true' ||
+      needs.detectar_alteracoes.outputs.needs_system == 'true' ||
+      needs.detectar_alteracoes.outputs.needs_packages == 'true' ||
+      needs.detectar_alteracoes.outputs.needs_image == 'true' ||
       inputs.force_rebuild == 'true'
     strategy:
       fail-fast: false
@@ -172,35 +172,35 @@ jobs:
     env:
       ARCH: ${{ matrix.arch }}
     steps:
-      - name: Download environment
+      - name: Download ambiente
         uses: actions/download-artifact@v4
         with:
-          name: environment-${{ needs.prepare.outputs.build_id }}
+          name: ambiente-${{ needs.preparar.outputs.build_id }}
           path: .
 
       - name: Setup buildroot
         run: |
           if [ -d "buildroot" ]; then
-            echo "Buildroot restored from cache"
+            echo "Buildroot restaurado do cache"
           fi
 
-      - name: Load Docker
+      - name: Carregar Docker
         run: docker load -i recalbox-build.tar
 
-      - name: Cache build output
+      - name: Cache output build
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
           path: buildroot/output
-          key: build-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detect_changes.outputs.diff_hash }}
+          key: build-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
           restore-keys: build-${{ matrix.arch }}-${{ github.runner_os }}-
 
-      - name: Build all
+      - name: Build tudo
         run: |
           set -e
           
           if [ ! -d "buildroot" ]; then
-            echo "Cloning buildroot..."
+            echo "Clonando buildroot..."
             git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
             cd buildroot
             git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
@@ -209,7 +209,7 @@ jobs:
           fi
           
           if [ ! -f "buildroot/.config" ]; then
-            echo "Configuring buildroot for ${{ matrix.arch }}..."
+            echo "Configurando buildroot para ${{ matrix.arch }}..."
             make -C buildroot recalbox-${{ matrix.arch }}_defconfig
           fi
           
@@ -222,7 +222,7 @@ jobs:
             recalbox-build:latest \
             make -C buildroot BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
 
-      - name: Prepare artifacts
+      - name: Preparar artefatos
         run: |
           if [ -f "buildroot/output/images/recalbox/recalbox.img" ]; then
             mkdir -p dist-${{ matrix.arch }}
@@ -231,47 +231,47 @@ jobs:
             cd dist-${{ matrix.arch }}
             sha256sum * > SHA256SUMS.txt
           else
-            echo "Build output not found"
-            ls -la buildroot/output/images/ 2>/dev/null || echo "No output directory"
+            echo "Build output nao encontrado"
+            ls -la buildroot/output/images/ 2>/dev/null || echo "Diretorio output nao existe"
           fi
 
-      - name: Upload artifacts
+      - name: Upload artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: image-${{ matrix.arch }}-${{ needs.detect_changes.outputs.diff_hash }}
+          name: imagem-${{ matrix.arch }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
           path: dist-${{ matrix.arch }}/
           retention-days: 7
 
   release:
     name: Release
     runs-on: ubuntu-latest
-    needs: [prepare, build]
+    needs: [preparar, build]
     if: always()
     steps:
-      - name: Download artifacts
+      - name: Download artefatos
         uses: actions/download-artifact@v4
         with:
           path: dist
           merge-multiple: true
 
-      - name: Show artifacts
+      - name: Mostrar artefatos
         run: |
           for arch in x86_64 rpi5_64; do
             echo "=== $arch ==="
-            ls -lh dist-$arch/ 2>/dev/null || echo "No artifacts"
+            ls -lh dist-$arch/ 2>/dev/null || echo "Sem artefatos"
           done
 
-      - name: Install GH CLI
+      - name: Instalar GH CLI
         uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
         with:
           gh-cli-version: ${{ env.GH_CLI_VERSION }}
 
-      - name: Create releases
+      - name: Criar releases
         if: needs.build.result == 'success'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          VERSION="${{ needs.prepare.outputs.date }}"
+          VERSION="${{ needs.preparar.outputs.date }}"
           
           for arch in x86_64 rpi5_64; do
             ARCH_DIR="dist-$arch"
@@ -279,37 +279,37 @@ jobs:
             
             if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
               TAG="v${VERSION}-${ARCH_TAG}"
-              echo "Creating release: $TAG"
+              echo "Criando release: $TAG"
               
-              cat > release_notes.md << 'EOFRELEASE'
-              # Recalbox Build
+              cat > notas_release.md << 'EOFRELEASE'
+              # Build Recalbox
 
               ## Downloads
 
-              | File | SHA256 |
-              |------|--------|
+              | Arquivo | SHA256 |
+              |---------|--------|
               EOFRELEASE
 
               for f in "$ARCH_DIR"/*.img "$ARCH_DIR"/*.zip; do
                 if [ -f "$f" ]; then
                   SHASUM=$(sha256sum "$f" | cut -d' ' -f1)
-                  echo "| $(basename $f) | \`$SHASUM\` |" >> release_notes.md
+                  echo "| $(basename $f) | \`$SHASUM\` |" >> notas_release.md
                 fi
               done
 
               gh release create "$TAG" "$ARCH_DIR"/* \
                 --title "Recalbox $VERSION ($arch)" \
-                --notes-file release_notes.md
+                --notes-file notas_release.md
             fi
           done
 
-      - name: Summary
+      - name: Resumo
         run: |
-          echo "## Build Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## Resumo do Build" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Step | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-----|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Detect | ${{ needs.detect_changes.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Prepare | ${{ needs.prepare.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Etapa | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Detectar | ${{ needs.detectar_alteracoes.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Preparar | ${{ needs.preparar.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "| Release | ${{ needs.release.result }} |" >> $GITHUB_STEP_SUMMARY
