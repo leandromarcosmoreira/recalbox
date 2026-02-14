@@ -108,6 +108,13 @@ jobs:
           cd buildroot
           git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
           git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+          cd ..
+          
+          echo "Copiando configs do Recalbox para buildroot..."
+          cp configs/recalbox-*_defconfig buildroot/configs/
+          
+          echo "Garantindo que custom existe..."
+          mkdir -p custom
 
       - name: Info versao
         id: versao
