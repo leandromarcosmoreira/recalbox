@@ -68,10 +68,8 @@ RUN apt-get update -y && \
         && rm -rf /var/lib/apt/lists/*
 
 RUN cargo install b3sum --locked 2>/dev/null || \
-    (aria2c -x 16 -s 16 -d /tmp -o b3.zip https://github.com/BLAKE3-team/BLAKE3/releases/latest/download/b3sum-bin-linux-x86_64.zip && \
-    unzip -o /tmp/b3.zip -d /usr/local/bin && \
-    chmod +x /usr/local/bin/b3sum && \
-    rm /tmp/b3.zip) || true
+    (aria2c -x 16 -s 16 -d /tmp -o b3sum https://github.com/BLAKE3-team/BLAKE3/releases/download/1.8.3/b3sum_linux_x64_bin && \
+    chmod +x /tmp/b3sum && mv /tmp/b3sum /usr/local/bin/b3sum) || true
 
 RUN echo "en_US.UTF-8 UTF-8" > /etc/locale.gen && \
     locale-gen
