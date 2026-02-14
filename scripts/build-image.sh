@@ -1,5 +1,4 @@
 #!/bin/bash
-set -e
 
 echo "=== Starting image build ==="
 echo "ARCH: $ARCH"
@@ -16,14 +15,26 @@ mkdir -p output build dl
 chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 chmod -R 777 output build dl 2>/dev/null || true
 
+# List current state
+echo "=== Output directory ==="
+ls -la output/ 2>/dev/null || echo "No output dir"
+
 # Run build
 echo "=== Running make ==="
 make -C buildroot \
     BR2_DL_DIR="$BR2_DL_DIR" \
     BR2_EXTERNAL="$BR2_EXTERNAL" \
     O="$O" \
-    RECALBOX_IMAGES="recalbox"
+    RECALBOX_IMAGES="recalbox" 2>&1 | tee /recalbox/build.log
 
-echo "=== Build complete ==="
-ls -la output/images/ 2>/dev/null || echo "No images directory"
-ls -la output/images/recalbox/ 2>/dev/null || echo "No recalbox directory"
+BUILD_STATUS=${PIPESTATUS[0]}
+echo "Build exit status: $BUILD_STATUS"
+
+echo "=== Build log tail ==="
+tail -50 /recalbox/build.log || true
+
+echo "=== Output images ==="
+ls -la output/images/ 2>/dev/null || echo "No images dir"
+ls -la output/images/recalbox/ 2>/dev/null || echo "No recalbox dir"
+
+exit $BUILD_STATUS
