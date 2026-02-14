@@ -209,7 +209,7 @@ jobs:
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
-          path: buildroot/output
+          path: output
           key: build-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
           restore-keys: build-${{ matrix.arch }}-${{ github.runner_os }}-
 
@@ -231,25 +231,22 @@ jobs:
           
           mkdir -p output dl
           
-          if [ ! -f "buildroot/.config" ]; then
+          if [ ! -f "output/.config" ]; then
             echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
             docker run --rm --security-opt seccomp=unconfined \
               -v "$(pwd):/recalbox" \
-              -v "$(pwd)/buildroot:/buildroot" \
-              -v "$(pwd)/dl:/share/dl" \
               -w /recalbox \
               -e "ARCH=${{ matrix.arch }}" \
               -e "BR2_EXTERNAL=/recalbox" \
               -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
               -e "O=/recalbox/output" \
+              -e "BR2_DL_DIR=/recalbox/dl" \
               recalbox-build:latest \
               make recalbox-${{ matrix.arch }}_defconfig
           fi
           
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
-            -v "$(pwd)/buildroot:/buildroot" \
-            -v "$(pwd)/dl:/share/dl" \
             -w /recalbox \
             -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
@@ -257,21 +254,22 @@ jobs:
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
             -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
+            make BR2_DL_DIR="/recalbox/dl" 2>&1 | tee build-${{ matrix.arch }}.log
 
       - name: Preparar artefatos
         run: |
-          if [ -f "buildroot/output/images/recalbox/recalbox.img" ]; then
+          if [ -f "output/images/recalbox/recalbox.img" ]; then
             mkdir -p dist-${{ matrix.arch }}
-            cp buildroot/output/images/recalbox/* dist-${{ matrix.arch }}/
+            cp output/images/recalbox/* dist-${{ matrix.arch }}/
             cp build-${{ matrix.arch }}.log dist-${{ matrix.arch }}/
             cd dist-${{ matrix.arch }}
             sha256sum * > SHA256SUMS.txt
           else
             echo "Build output nao encontrado"
-            ls -la buildroot/output/images/ 2>/dev/null || echo "Diretorio output nao existe"
+            ls -la output/images/ 2>/dev/null || echo "Diretorio output nao existe"
           fi
 
       - name: Upload artefatos
