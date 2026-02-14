@@ -221,11 +221,16 @@ jobs:
           echo "Corrigindo permissoes dos scripts..."
           chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
           
+          mkdir -p output
+          
           if [ ! -f "buildroot/.config" ]; then
             echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
             docker run --rm --security-opt seccomp=unconfined \
               -v "$(pwd):/work" \
               -w /work \
+              -e "BR2_EXTERNAL=/work" \
+              -e "BR2_PACKAGE_OVERRIDE_FILE=/work/local.mk" \
+              -e "O=/work/output" \
               recalbox-build:latest \
               make -C buildroot recalbox-${{ matrix.arch }}_defconfig
           fi
@@ -235,6 +240,9 @@ jobs:
             -e "ARCH=${{ matrix.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
+            -e "BR2_EXTERNAL=/work" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/work/local.mk" \
+            -e "O=/work/output" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
             make -C buildroot BR2_DL_DIR="/share/dl" 2>&1 | tee build-${{ matrix.arch }}.log
