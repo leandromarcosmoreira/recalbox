@@ -125,44 +125,35 @@ jobs:
           
           RESPONSE=$(cat /tmp/artifacts.json)
           
-          ARTIFACTS=$(echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null)
-          
-          # Verificar em ordem invertida (do mais completo ao menos completo)
-          case "$ARTIFACTS" in
-            *"imagem-${ARCH}"*)
-              echo "stage=done" >> $GITHUB_OUTPUT
-              echo "has_image=true" >> $GITHUB_OUTPUT
-              echo "has_packages=true" >> $GITHUB_OUTPUT
-              echo "has_kernel=true" >> $GITHUB_OUTPUT
-              echo "has_defconfig=true" >> $GITHUB_OUTPUT
-              echo "has_prepare=true" >> $GITHUB_OUTPUT
-              ;;
-            *"build-packages-${ARCH}"*)
-              echo "stage=image" >> $GITHUB_OUTPUT
-              echo "has_packages=true" >> $GITHUB_OUTPUT
-              echo "has_kernel=true" >> $GITHUB_OUTPUT
-              echo "has_defconfig=true" >> $GITHUB_OUTPUT
-              echo "has_prepare=true" >> $GITHUB_OUTPUT
-              ;;
-            *"build-kernel-${ARCH}"*)
-              echo "stage=packages" >> $GITHUB_OUTPUT
-              echo "has_kernel=true" >> $GITHUB_OUTPUT
-              echo "has_defconfig=true" >> $GITHUB_OUTPUT
-              echo "has_prepare=true" >> $GITHUB_OUTPUT
-              ;;
-            *"buildroot-defconfig-${ARCH}"*)
-              echo "stage=kernel" >> $GITHUB_OUTPUT
-              echo "has_defconfig=true" >> $GITHUB_OUTPUT
-              echo "has_prepare=true" >> $GITHUB_OUTPUT
-              ;;
-            *"buildroot-prepare-${ARCH}"*)
-              echo "stage=defconfig" >> $GITHUB_OUTPUT
-              echo "has_prepare=true" >> $GITHUB_OUTPUT
-              ;;
-            *)
-              echo "stage=prepare" >> $GITHUB_OUTPUT
-              ;;
-          esac
+          # Verificar artefatos um por um (primeiro match wins)
+          if echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -F "imagem-${ARCH}"; then
+            echo "stage=done" >> $GITHUB_OUTPUT
+            echo "has_image=true" >> $GITHUB_OUTPUT
+            echo "has_packages=true" >> $GITHUB_OUTPUT
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -F "build-packages-${ARCH}"; then
+            echo "stage=image" >> $GITHUB_OUTPUT
+            echo "has_packages=true" >> $GITHUB_OUTPUT
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -F "build-kernel-${ARCH}"; then
+            echo "stage=packages" >> $GITHUB_OUTPUT
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -F "buildroot-defconfig-${ARCH}"; then
+            echo "stage=kernel" >> $GITHUB_OUTPUT
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+          elif echo "$RESPONSE" | jq -r '.artifacts[].name' 2>/dev/null | grep -F "buildroot-prepare-${ARCH}"; then
+            echo "stage=defconfig" >> $GITHUB_OUTPUT
+            echo "has_prepare=true" >> $GITHUB_OUTPUT
+          else
+            echo "stage=prepare" >> $GITHUB_OUTPUT
+          fi
 
   prepare:
     name: "[1/5] Preparar Ambiente"
