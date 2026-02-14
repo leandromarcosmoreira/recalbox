@@ -343,16 +343,16 @@ jobs:
               
               FILE_SIZE=$(stat -c%s "$ARCH_DIR/recalbox.img" | numfmt --to=iec-i --suffix=B)
               
-              cat > notas_release.md << 'EOFRELEASE'
-              # Recalbox - O console retrogaming tudo-em-um
-              
-              ## Instale em seu hardware
-              
-              Versão gratuita do Recalbox para instalação em seu hardware!
-              
-              ## Requisitos do Sistema
-              
-              EOFRELEASE
+              {
+                echo "# Recalbox - O console retrogaming tudo-em-um"
+                echo ""
+                echo "## Instale em seu hardware"
+                echo ""
+                echo "Versão gratuita do Recalbox para instalação em seu hardware!"
+                echo ""
+                echo "## Requisitos do Sistema"
+                echo ""
+              } > notas_release.md
               
               echo "**Arquitetura:** ${ARCH_DISPLAY}" >> notas_release.md
               echo "" >> notas_release.md
