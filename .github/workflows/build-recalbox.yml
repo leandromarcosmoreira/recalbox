@@ -9,15 +9,23 @@ on:
         default: 'false'
         type: boolean
       force_rebuild:
-        description: 'Forçar rebuild'
+        description: 'Forçar rebuild completo'
         required: false
         default: 'false'
         type: boolean
-      architectures:
-        description: 'Arquiteturas'
+      arch:
+        description: 'Arquitetura'
         required: false
         default: 'x86_64'
-        type: string
+        type: choice
+        options:
+          - x86_64
+          - rpi5_64
+          - rpi4_64
+          - rpi3
+          - rpizero2
+          - rg353x
+          - odroidgo2
 
 env:
   DOCKER_BUILDKIT: 1
@@ -25,121 +33,141 @@ env:
   GH_CLI_VERSION: '2.65.0'
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  group: ${{ github.workflow }}-${{ github.ref }}-${{ inputs.arch }}
+  cancel-in-progress: false
 
 jobs:
-  detectar_alteracoes:
-    name: Detectar Alteracoes
+  detectar_estado:
+    name: Verificar Estado
     runs-on: ubuntu-latest
     outputs:
-      needs_toolchain: ${{ steps.detectar.outputs.needs_toolchain }}
-      needs_system: ${{ steps.detectar.outputs.needs_system }}
-      needs_packages: ${{ steps.detectar.outputs.needs_packages }}
-      needs_image: ${{ steps.detectar.outputs.needs_image }}
-      diff_hash: ${{ steps.detectar.outputs.diff_hash }}
+      stage: ${{ steps.determinar.outputs.stage }}
+      has_image: ${{ steps.determinar.outputs.has_image }}
+      has_packages: ${{ steps.determinar.outputs.has_packages }}
+      has_kernel: ${{ steps.determinar.outputs.has_kernel }}
+      has_defconfig: ${{ steps.determinar.outputs.has_defconfig }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verificar artefatos existentes
+        id: verificar
+        run: |
+          echo "Verificando artefatos para ${{ inputs.arch }}..."
+          
+          # Verificar cada estágio
+          for stage in prepare defconfig kernel packages image; do
+            echo "Checking $stage..."
+          done
+
+      - name: Determinar próximo estágio
+        id: determinar
+        run: |
+          echo "Determinando estágio inicial..."
+          
+          # Verificar se tem imagem final
+          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "imagem-${{ inputs.arch }}"; then
+            echo "has_image=true" >> $GITHUB_OUTPUT
+            echo "Imagem já existe!"
+            echo "stage=done" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "has_image=false" >> $GITHUB_OUTPUT
+          
+          # Verificar packages
+          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-packages-${{ inputs.arch }}"; then
+            echo "has_packages=true" >> $GITHUB_OUTPUT
+            echo "stage=5-image" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "has_packages=false" >> $GITHUB_OUTPUT
+          
+          # Verificar kernel
+          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-kernel-${{ inputs.arch }}"; then
+            echo "has_kernel=true" >> $GITHUB_OUTPUT
+            echo "stage=4-packages" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "has_kernel=false" >> $GITHUB_OUTPUT
+          
+          # Verificar defconfig
+          if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "buildroot-defconfig-${{ inputs.arch }}"; then
+            echo "has_defconfig=true" >> $GITHUB_OUTPUT
+            echo "stage=3-kernel" >> $GITHUB_OUTPUT
+            exit 0
+          fi
+          echo "has_defconfig=false" >> $GITHUB_OUTPUT
+          
+          echo "stage=1-prepare" >> $GITHUB_OUTPUT
+
+  1-prepare:
+    name: "[1/5] Preparar Ambiente"
+    runs-on: ubuntu-latest
+    needs: detectar_estado
+    if: needs.detectar_estado.outputs.stage == '1-prepare' || needs.detectar_estado.outputs.stage == '2-defconfig' || needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: Obter commit anterior
-        id: commit_anterior
-        run: |
-          PREV_COMMIT=$(git rev-parse HEAD~1 2>/dev/null || git rev-list --max-parents=0 HEAD)
-          echo "prev_commit=$PREV_COMMIT" >> $GITHUB_OUTPUT
+      - name: Baixar cache existente
+        uses: actions/download-artifact@v4
+        with:
+          name: buildroot-prepare-${{ inputs.arch }}
+          path: . 
+        continue-on-error: true
 
-      - name: Detectar alteracoes
-        id: detectar
+      - name: Clonar/Verificar buildroot
         run: |
-          CHANGED_FILES=$(git diff --name-only ${{ steps.commit_anterior.outputs.prev_commit }}...HEAD 2>/dev/null || echo "")
-          
-          NEEDS_TOOLCHAIN=false
-          NEEDS_SYSTEM=false
-          NEEDS_PACKAGES=false
-          NEEDS_IMAGE=true
-          
-          if [ -z "$CHANGED_FILES" ]; then
-            NEEDS_TOOLCHAIN=false
-            NEEDS_SYSTEM=false
-            NEEDS_PACKAGES=false
-          elif echo "$CHANGED_FILES" | grep -qE '^(toolchain/|package/.*/toolchain|Config.in|configs/|scripts/buildroot)'; then
-            NEEDS_TOOLCHAIN=true
-            NEEDS_SYSTEM=true
-            NEEDS_PACKAGES=true
-          elif echo "$CHANGED_FILES" | grep -qE '^board/'; then
-            NEEDS_SYSTEM=true
-            NEEDS_PACKAGES=true
-          elif echo "$CHANGED_FILES" | grep -qE '^package/'; then
-            NEEDS_PACKAGES=true
+          if [ ! -d "buildroot" ] || [ ! -f "buildroot/Makefile" ]; then
+            echo "Clonando buildroot..."
+            rm -rf buildroot
+            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
+            cd buildroot
+            git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            cd ..
+          else
+            echo "Buildroot já existe, reutilizando..."
           fi
           
-          if [ "${{ inputs.force_rebuild }}" == "true" ]; then
-            NEEDS_TOOLCHAIN=true
-            NEEDS_SYSTEM=true
-            NEEDS_PACKAGES=true
-          fi
-          
-          echo "needs_toolchain=$NEEDS_TOOLCHAIN" >> $GITHUB_OUTPUT
-          echo "needs_system=$NEEDS_SYSTEM" >> $GITHUB_OUTPUT
-          echo "needs_packages=$NEEDS_PACKAGES" >> $GITHUB_OUTPUT
-          echo "needs_image=$NEEDS_IMAGE" >> $GITHUB_OUTPUT
-          echo "diff_hash=${GITHUB_SHA:0:8}" >> $GITHUB_OUTPUT
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+          mkdir -p output dl
 
-  preparar:
-    name: Preparar Ambiente
+      - name: Criar cache
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildroot-prepare-${{ inputs.arch }}
+          path: |
+            buildroot/
+            output/
+            dl/
+          retention-days: 7
+
+  2-defconfig:
+    name: "[2/5] Configurar Build"
     runs-on: ubuntu-latest
-    needs: detectar_alteracoes
-    outputs:
-      date: ${{ steps.versao.outputs.date }}
-      slug: ${{ steps.versao.outputs.slug }}
-      build_id: ${{ github.run_id }}
+    needs: [1-prepare, detectar_estado]
+    if: needs.detectar_estado.outputs.stage == '2-defconfig' || needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
     steps:
       - uses: actions/checkout@v4
         with:
-          submodules: recursive
-          fetch-depth: 1
+          fetch-depth: 0
 
-      - name: Garantir buildroot
-        run: |
-          if [ ! -d buildroot ]; then
-            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
-          fi
-          cd buildroot
-          git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-          git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-          cd ..
-          
-          echo "Copiando configs do Recalbox para buildroot..."
-          cp -v configs/recalbox-*_defconfig buildroot/configs/ || echo "Nenhum config encontrado"
-          ls -la buildroot/configs/recalbox* 2>/dev/null || echo "Configs não copiados"
-          
-          echo "Garantindo que custom existe..."
-          mkdir -p custom
-
-      - name: Info versao
-        id: versao
-        run: |
-          echo "date=$(date '+%Y%m%d')" >> $GITHUB_OUTPUT
-          echo "slug=${GITHUB_REF_NAME//\//-}" >> $GITHUB_OUTPUT
-
-      - name: Cache downloads buildroot
-        if: ${{ !inputs.skip_cache }}
-        uses: actions/cache@v4
+      - name: Baixar cache prepare
+        uses: actions/download-artifact@v4
         with:
-          path: buildroot/dl
-          key: buildroot-dl-${{ github.runner_os }}
-          restore-keys: buildroot-dl-${{ github.runner_os }}-
+          name: buildroot-prepare-${{ inputs.arch }}
+          path: .
+        continue-on-error: true
 
-      - name: Cache ccache
-        if: ${{ !inputs.skip_cache }}
-        uses: actions/cache@v4
+      - name: Baixar cache defconfig existente
+        uses: actions/download-artifact@v4
         with:
-          path: ~/.ccache
-          key: recalbox-ccache-${{ github.runner_os }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
-          restore-keys: recalbox-ccache-${{ github.runner_os }}-
+          name: buildroot-defconfig-${{ inputs.arch }}
+          path: .
+        continue-on-error: true
 
-      - name: Build imagem Docker
+      - name: Build Docker
         uses: docker/build-push-action@v6
         with:
           context: .
@@ -149,113 +177,110 @@ jobs:
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
 
-      - name: Resumo Docker Build
+      - name: Executar defconfig
+        if: needs.detectar_estado.outputs.has_defconfig != 'true'
         run: |
-          echo "### Docker Build Concluído" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Para uma visão detalhada do build, baixe o arquivo de registro de build" >> $GITHUB_STEP_SUMMARY
-          echo "e importe-o na visualização Builds do Docker Desktop." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Os registros de build incluem detalhes como tempo, dependências, resultados," >> $GITHUB_STEP_SUMMARY
-          echo "logs, rastros e outras informações sobre o build." >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Imagem | Status | Cache | Duração |" >> $GITHUB_STEP_SUMMARY
-          echo "|--------|--------|-------|---------|" >> $GITHUB_STEP_SUMMARY
-          echo "| recalbox-build | ✅ concluído | 42% | ~51s |" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "**Entradas do build:**" >> $GITHUB_STEP_SUMMARY
-          echo "- cache-from: type=gha,scope=recalbox" >> $GITHUB_STEP_SUMMARY
-          echo "- cache-to: type=gha,mode=max,scope=recalbox" >> $GITHUB_STEP_SUMMARY
-          echo "- context: ." >> $GITHUB_STEP_SUMMARY
-          echo "- load: true" >> $GITHUB_STEP_SUMMARY
-          echo "- tags: recalbox-build:latest" >> $GITHUB_STEP_SUMMARY
-
-      - name: Salvar imagem Docker
-        run: docker save recalbox-build:latest -o recalbox-build.tar
-
-      - name: Upload ambiente
-        uses: actions/upload-artifact@v4
-        with:
-          name: ambiente-${{ github.run_id }}
-          path: |
-            recalbox-build.tar
-            buildroot/
-          retention-days: 2
-
-  build:
-    name: Build ${{ matrix.arch }}
-    runs-on: ubuntu-latest
-    needs: [detectar_alteracoes, preparar]
-    if: |
-      needs.detectar_alteracoes.outputs.needs_toolchain == 'true' ||
-      needs.detectar_alteracoes.outputs.needs_system == 'true' ||
-      needs.detectar_alteracoes.outputs.needs_packages == 'true' ||
-      needs.detectar_alteracoes.outputs.needs_image == 'true' ||
-      inputs.force_rebuild == 'true'
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - arch: x86_64
-          - arch: rpi5_64
-          - arch: rpi4_64
-          - arch: rpi3
-          - arch: rpizero2
-          - arch: rg353x
-          - arch: odroidgo2
-    env:
-      ARCH: ${{ matrix.arch }}
-    steps:
-      - name: Checkout repositório
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Download ambiente
-        uses: actions/download-artifact@v4
-        with:
-          name: ambiente-${{ needs.preparar.outputs.build_id }}
-          path: .
-
-      - name: Setup buildroot
-        run: |
-          if [ -d "buildroot" ]; then
-            echo "Buildroot restaurado do cache"
-          fi
-
-      - name: Carregar Docker
-        run: docker load -i recalbox-build.tar
-
-      - name: Cache output build
-        if: ${{ !inputs.skip_cache }}
-        uses: actions/cache@v4
-        with:
-          path: output
-          key: build-${{ matrix.arch }}-${{ github.runner_os }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
-          restore-keys: build-${{ matrix.arch }}-${{ github.runner_os }}-
-
-      - name: Build tudo
-        run: |
-          set -e
-          
-          if [ ! -d "buildroot" ]; then
-            echo "Clonando buildroot..."
-            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
-            cd buildroot
-            git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-            git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
-            cd ..
-          fi
-          
-          echo "Corrigindo permissoes dos scripts..."
-          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
-          
-          mkdir -p output dl
-          
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
-            -e "ARCH=${{ matrix.arch }}" \
+            -e "ARCH=${{ inputs.arch }}" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            recalbox-build:latest \
+            make recalbox-${{ inputs.arch }}_defconfig 2>&1 | tee defconfig.log
+
+      - name: Salvar cache defconfig
+        uses: actions/upload-artifact@v4
+        with:
+          name: buildroot-defconfig-${{ inputs.arch }}
+          path: |
+            output/.config
+            output/Makefile
+            defconfig.log
+          retention-days: 7
+
+  3-kernel:
+    name: "[3/5] Compilar Kernel"
+    runs-on: ubuntu-latest
+    needs: [2-defconfig, detectar_estado]
+    if: needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar caches
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+          pattern: buildroot-*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Build Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: recalbox-build:latest
+
+      - name: Compilar kernel
+        if: needs.detectar_estado.outputs.has_kernel != 'true'
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=${{ inputs.arch }}" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" linux 2>&1 | tee kernel.log
+
+      - name: Salvar cache kernel
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-kernel-${{ inputs.arch }}
+          path: |
+            output/build/
+            kernel.log
+          retention-days: 7
+
+  4-packages:
+    name: "[4/5] Compilar Pacotes"
+    runs-on: ubuntu-latest
+    needs: [3-kernel, detectar_estado]
+    if: needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar todos os caches
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+          pattern: build*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Build Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: recalbox-build:latest
+
+      - name: Compilar pacotes
+        if: needs.detectar_estado.outputs.has_packages != 'true'
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=${{ inputs.arch }}" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -e "BR2_EXTERNAL=/recalbox" \
@@ -264,15 +289,61 @@ jobs:
             -e "BR2_DL_DIR=/recalbox/dl" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            bash -c 'make recalbox-${{ matrix.arch }}_defconfig && make -C buildroot BR2_DL_DIR="/recalbox/dl"' 2>&1 | tee build-${{ matrix.arch }}.log
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" 2>&1 | tee packages.log
+
+      - name: Salvar cache packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-packages-${{ inputs.arch }}
+          path: |
+            output/build/
+            packages.log
+          retention-days: 7
+
+  5-image:
+    name: "[5/5] Gerar Imagem"
+    runs-on: ubuntu-latest
+    needs: [4-packages, detectar_estado]
+    if: needs.detectar_estado.outputs.stage == '5-image'
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Baixar todos os caches
+        uses: actions/download-artifact@v4
+        with:
+          path: .
+          pattern: build*
+          merge-multiple: true
+        continue-on-error: true
+
+      - name: Build Docker
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: recalbox-build:latest
+
+      - name: Gerar imagem
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=${{ inputs.arch }}" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            recalbox-build:latest \
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" RECALBOX_IMAGES="recalbox" 2>&1 | tee image.log
 
       - name: Preparar artefatos
         run: |
           if [ -f "output/images/recalbox/recalbox.img" ]; then
-            mkdir -p dist-${{ matrix.arch }}
-            cp output/images/recalbox/* dist-${{ matrix.arch }}/
-            cp build-${{ matrix.arch }}.log dist-${{ matrix.arch }}/
-            cd dist-${{ matrix.arch }}
+            mkdir -p dist-${{ inputs.arch }}
+            cp output/images/recalbox/* dist-${{ inputs.arch }}/
+            cp image.log dist-${{ inputs.arch }}/
+            cd dist-${{ inputs.arch }}
             sha256sum * > SHA256SUMS.txt
           else
             echo "Build output nao encontrado"
@@ -282,155 +353,18 @@ jobs:
       - name: Upload artefatos
         uses: actions/upload-artifact@v4
         with:
-          name: imagem-${{ matrix.arch }}-${{ needs.detectar_alteracoes.outputs.diff_hash }}
-          path: dist-${{ matrix.arch }}/
-          retention-days: 7
+          name: imagem-${{ inputs.arch }}
+          path: dist-${{ inputs.arch }}/
+          retention-days: 30
 
-  release:
-    name: Criar Release
+  completo:
+    name: Build Completo
     runs-on: ubuntu-latest
-    needs: [detectar_alteracoes, preparar, build]
-    if: always()
-    outputs:
-      diff_hash: ${{ needs.detectar_alteracoes.outputs.diff_hash }}
+    needs: [5-image, detectar_estado]
+    if: needs.detectar_estado.outputs.stage == 'done'
     steps:
-      - name: Baixar artefatos de imagem
-        uses: actions/download-artifact@v4
-        with:
-          path: dist
-          pattern: imagem-*
-          merge-multiple: true
-
-      - name: Mostrar artefatos baixados
+      - name: Verificar imagem existente
         run: |
-          for arch in x86_64 rpi5_64 rpi3 rpizero2 rpi4_64 rg353x odroidgo2; do
-            echo "=== $arch ==="
-            ls -lh dist-$arch/ 2>/dev/null || echo "Sem artefatos para $arch"
-          done
-
-      - name: Instalar GH CLI
-        uses: dev-hanz-ops/install-gh-cli-action@v0.2.1
-        with:
-          gh-cli-version: ${{ env.GH_CLI_VERSION }}
-
-      - name: Criar releases
-        if: needs.build.result == 'success'
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          VERSION="${{ needs.preparar.outputs.date }}"
-          DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
-          COMMIT="${{ github.sha }}"
-          
-          for arch in x86_64 rpi5_64 rpi3 rpizero2 rpi4_64 rg353x odroidgo2; do
-            ARCH_DIR="dist-$arch"
-            
-            ARCH_DISPLAY=""
-            ARCH_DESCRIPTION=""
-            case "$arch" in
-              x86_64)
-                ARCH_DISPLAY="PC (x86_64)"
-                ARCH_DESCRIPTION="Para PCs e notebooks com processador Intel ou AMD"
-                ;;
-              rpi5_64)
-                ARCH_DISPLAY="Raspberry Pi 5"
-                ARCH_DESCRIPTION="Para Raspberry Pi 5 (8GB recomendado)"
-                ;;
-              rpi4_64)
-                ARCH_DISPLAY="Raspberry Pi 4"
-                ARCH_DESCRIPTION="Para Raspberry Pi 4 (4GB ou 8GB)"
-                ;;
-              rpi3)
-                ARCH_DISPLAY="Raspberry Pi 3"
-                ARCH_DESCRIPTION="Para Raspberry Pi 3B/B+"
-                ;;
-              rpizero2)
-                ARCH_DISPLAY="Raspberry Pi Zero 2"
-                ARCH_DESCRIPTION="Para Raspberry Pi Zero 2 W"
-                ;;
-              rg353x)
-                ARCH_DISPLAY="Anbernic RG353X"
-                ARCH_DESCRIPTION="Para handheld Anbernic RG353X"
-                ;;
-              odroidgo2)
-                ARCH_DISPLAY="Odroid Go Advance"
-                ARCH_DESCRIPTION="Para Odroid Go Advance"
-                ;;
-            esac
-            
-            if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
-              TAG="v${VERSION}-${arch}"
-              echo "Criando release: $TAG"
-              
-              FILE_SIZE=$(stat -c%s "$ARCH_DIR/recalbox.img" | numfmt --to=iec-i --suffix=B)
-              
-              {
-                echo "# Recalbox - O console retrogaming tudo-em-um"
-                echo ""
-                echo "## Instale em seu hardware"
-                echo ""
-                echo "Versão gratuita do Recalbox para instalação em seu hardware!"
-                echo ""
-                echo "## Requisitos do Sistema"
-                echo ""
-              } > notas_release.md
-              
-              echo "**Arquitetura:** ${ARCH_DISPLAY}" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "${ARCH_DESCRIPTION}" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "---" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "## Downloads" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "| Arquivo | Tamanho | SHA256 |" >> notas_release.md
-              echo "|---------|---------|--------|" >> notas_release.md
-              
-              for f in "$ARCH_DIR"/*.img "$ARCH_DIR"/*.zip; do
-                if [ -f "$f" ]; then
-                  FILENAME=$(basename "$f")
-                  FILESIZE=$(stat -c%s "$f" | numfmt --to=iec-i --suffix=B)
-                  SHASUM=$(sha256sum "$f" | cut -d' ' -f1)
-                  echo "| ${FILENAME} | ${FILESIZE} | \`${SHASUM}\` |" >> notas_release.md
-                fi
-              done
-              
-              echo "" >> notas_release.md
-              echo "---" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "## Informações do Build" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "- **Versão:** ${VERSION}" >> notas_release.md
-              echo "- **Data:** ${DATETIME}" >> notas_release.md
-              echo "- **Commit:** \`${COMMIT:0:8}\`" >> notas_release.md
-              echo "- **Workflow:** #${GITHUB_RUN_NUMBER}" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "---" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "## Como Instalar" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "1. Baixe a imagem para sua arquitetura" >> notas_release.md
-              echo "2. Descompacte o arquivo .img.gz" >> notas_release.md
-              echo "3. Use obalenaEtcher ou Raspberry Pi Imager para gravar em um SD card ou USB" >> notas_release.md
-              echo "4. Boot e aproveite!" >> notas_release.md
-              echo "" >> notas_release.md
-              echo "Para mais informações, visite: [wiki.recalbox.com](https://wiki.recalbox.com/)" >> notas_release.md
-              
-              gh release create "$TAG" "$ARCH_DIR"/* \
-                --title "Recalbox ${VERSION} (${ARCH_DISPLAY})" \
-                --notes-file notas_release.md
-                
-              echo "Release criado para $arch"
-            fi
-          done
-
-      - name: Resumo
-        run: |
-          echo "## Resumo do Build" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "| Etapa | Status |" >> $GITHUB_STEP_SUMMARY
-          echo "|-------|--------|" >> $GITHUB_STEP_SUMMARY
-          echo "| Detectar | ${{ needs.detectar_alteracoes.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Preparar | ${{ needs.preparar.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Build | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
-          echo "| Release | ${{ needs.release.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "### Build já existente!" >> $GITHUB_STEP_SUMMARY
+          echo "A imagem para ${{ inputs.arch }} já foi compilada anteriormente." >> $GITHUB_STEP_SUMMARY
+          echo "Acesse os artefatos para baixar." >> $GITHUB_STEP_SUMMARY
