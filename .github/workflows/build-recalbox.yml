@@ -231,20 +231,6 @@ jobs:
           
           mkdir -p output dl
           
-          if [ ! -f "output/.config" ]; then
-            echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
-            docker run --rm --security-opt seccomp=unconfined \
-              -v "$(pwd):/recalbox" \
-              -w /recalbox \
-              -e "ARCH=${{ matrix.arch }}" \
-              -e "BR2_EXTERNAL=/recalbox" \
-              -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
-              -e "O=/recalbox/output" \
-              -e "BR2_DL_DIR=/recalbox/dl" \
-              recalbox-build:latest \
-              make recalbox-${{ matrix.arch }}_defconfig
-          fi
-          
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
@@ -257,7 +243,7 @@ jobs:
             -e "BR2_DL_DIR=/recalbox/dl" \
             -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make BR2_DL_DIR="/recalbox/dl" 2>&1 | tee build-${{ matrix.arch }}.log
+            bash -c 'make recalbox-${{ matrix.arch }}_defconfig && make -C buildroot BR2_DL_DIR="/recalbox/dl"' 2>&1 | tee build-${{ matrix.arch }}.log
 
       - name: Preparar artefatos
         run: |
