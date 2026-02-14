@@ -229,18 +229,18 @@ jobs:
         uses: actions/cache@v4
         with:
           path: buildroot/dl
-          key: buildroot-dl-${{ runner.os }}-${{ hashFiles('board/**/ Config.in*') }}
+          key: buildroot-dl-${{ github.runner_os }}-${{ hashFiles('board/**/ Config.in*') }}
           restore-keys: |
-            buildroot-dl-${{ runner.os }}-
+            buildroot-dl-${{ github.runner_os }}-
 
       - name: Restore ccache Cache
         if: ${{ !inputs.skip_cache }}
         uses: actions/cache@v4
         with:
           path: ~/.ccache
-          key: recalbox-ccache-${{ runner.os }}-${{ github.sha }}
+          key: recalbox-ccache-${{ github.runner_os }}-${{ github.sha }}
           restore-keys: |
-            recalbox-ccache-${{ runner.os }}-
+            recalbox-ccache-${{ github.runner_os }}-
 
       - name: Build Docker Image
         uses: docker/build-push-action@v6
@@ -278,8 +278,8 @@ jobs:
        inputs.build_target != 'auto')
     env:
       ARCH: x86_64
-      CACHE_KEY: build-x86_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
-      FALLBACK_KEY: build-x86_64-${{ runner.os }}-
+      CACHE_KEY: build-x86_64-${{ github.runner_os }}-${{ needs.detect_changes.outputs.diff_hash }}
+      FALLBACK_KEY: build-x86_64-${{ github.runner_os }}-
     steps:
       - name: Download setup artifact
         uses: actions/download-artifact@v4
@@ -446,8 +446,8 @@ jobs:
        inputs.build_target != 'auto')
     env:
       ARCH: rpi5_64
-      CACHE_KEY: build-rpi5_64-${{ runner.os }}-${{ needs.detect_changes.outputs.diff_hash }}
-      FALLBACK_KEY: build-rpi5_64-${{ runner.os }}-
+      CACHE_KEY: build-rpi5_64-${{ github.runner_os }}-${{ needs.detect_changes.outputs.diff_hash }}
+      FALLBACK_KEY: build-rpi5_64-${{ github.runner_os }}-
     steps:
       - name: Download setup artifact
         uses: actions/download-artifact@v4
