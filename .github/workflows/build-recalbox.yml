@@ -491,20 +491,17 @@ jobs:
       needs.detect_changes.outputs.needs_image == 'true' ||
       inputs.build_target == 'image' ||
       inputs.build_target == 'all'
-    matrix:
-      include:
-        - arch: x86_64
-          toolchain_artifact: toolchain-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
-          system_artifact: system-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
-          packages_artifact: packages-x86_64-${{ needs.detect_changes.outputs.diff_hash }}
-          output_dir: dist-x86_64
-        - arch: rpi5_64
-          toolchain_artifact: toolchain-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
-          system_artifact: system-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
-          packages_artifact: packages-rpi5_64-${{ needs.detect_changes.outputs.diff_hash }}
-          output_dir: dist-rpi5_64
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x86_64
+            output_dir: dist-x86_64
+          - arch: rpi5_64
+            output_dir: dist-rpi5_64
     env:
       ARCH: ${{ matrix.arch }}
+      DIFF_HASH: ${{ needs.detect_changes.outputs.diff_hash }}
     steps:
       - name: Download environment artifact
         uses: actions/download-artifact@v4
@@ -519,7 +516,7 @@ jobs:
         if: needs.build_toolchain.outputs.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.toolchain_artifact }}
+          name: ${{ matrix.arch == 'x86_64' && 'toolchain-x86_64' || 'toolchain-rpi5_64' }}-${{ env.DIFF_HASH }}
           path: .
         continue-on-error: true
 
@@ -527,7 +524,7 @@ jobs:
         if: needs.build_system.outputs.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.system_artifact }}
+          name: ${{ matrix.arch == 'x86_64' && 'system-x86_64' || 'system-rpi5_64' }}-${{ env.DIFF_HASH }}
           path: .
         continue-on-error: true
 
@@ -535,7 +532,7 @@ jobs:
         if: needs.build_packages.outputs.result != 'skipped'
         uses: actions/download-artifact@v4
         with:
-          name: ${{ matrix.packages_artifact }}
+          name: ${{ matrix.arch == 'x86_64' && 'packages-x86_64' || 'packages-rpi5_64' }}-${{ env.DIFF_HASH }}
           path: .
         continue-on-error: true
 
@@ -607,7 +604,7 @@ jobs:
   validate_and_release:
     name: Validate and Release
     runs-on: ubuntu-latest
-    needs: [prepare_environment, build_image]
+    needs: [detect_changes, prepare_environment, build_image]
     if: always()
     steps:
       - name: Download all image artifacts
@@ -656,21 +653,24 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          TAG_BASE="${{ needs.prepare_environment.outputs.slug }}-${{ needs.prepare_environment.outputs.date }}"
+          VERSION="${{ needs.prepare_environment.outputs.date }}"
+          BRANCH="${{ needs.prepare_environment.outputs.slug }}"
           
           for arch in x86_64 rpi5_64; do
             ARCH_DIR="dist-$arch"
+            ARCH_TAG=$(echo "$arch" | sed 's/_/./g')
+            
             if [ -d "$ARCH_DIR" ] && [ -f "$ARCH_DIR/recalbox.img" ]; then
-              TAG="${arch}-${TAG_BASE}"
+              TAG="v${VERSION}-${ARCH_TAG}"
               echo "Creating release for ${arch}..."
               
               cat > release_notes.md << EOF
-              # Recalbox ${arch} Build
+              # Recalbox Build ${VERSION}
 
+              **Branch:** ${BRANCH}
+              **Architecture:** ${arch^^}
               **Build Date:** ${{ needs.prepare_environment.outputs.datetime }}
-              **Architecture:** ${arch}
               **Commit:** ${github.sha}
-              **Workflow:** #${github.run_number}
 
               ## Downloads
 
@@ -688,12 +688,12 @@ jobs:
               echo "" >> release_notes.md
               echo "## Build Information" >> release_notes.md
               echo "- Diff Hash: \`${{ needs.detect_changes.outputs.diff_hash }}\`" >> release_notes.md
-              echo "- Toolchain Hash: \`${{ needs.detect_changes.outputs.toolchain_hash }}\`" >> release_notes.md
-              echo "- System Hash: \`${{ needs.detect_changes.outputs.system_hash }}\`" >> release_notes.md
-              echo "- Packages Hash: \`${{ needs.detect_changes.outputs.packages_hash }}\`" >> release_notes.md
+              echo "- Toolchain: \`${{ needs.detect_changes.outputs.needs_toolchain }}\`" >> release_notes.md
+              echo "- System: \`${{ needs.detect_changes.outputs.needs_system }}\`" >> release_notes.md
+              echo "- Packages: \`${{ needs.detect_changes.outputs.needs_packages }}\`" >> release_notes.md
 
               gh release create "${TAG}" "${ARCH_DIR}"/* \
-                --title "Recalbox ${arch} ${TAG_BASE}" \
+                --title "Recalbox ${VERSION} (${ARCH_TAG})" \
                 --notes-file release_notes.md
               
               echo "Release created for $arch"
