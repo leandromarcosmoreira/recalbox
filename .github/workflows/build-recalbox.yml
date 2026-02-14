@@ -76,7 +76,7 @@ jobs:
           # Verificar packages
           if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-packages-${{ inputs.arch }}"; then
             echo "has_packages=true" >> $GITHUB_OUTPUT
-            echo "stage=5-image" >> $GITHUB_OUTPUT
+            echo "stage=stage_5" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "has_packages=false" >> $GITHUB_OUTPUT
@@ -84,7 +84,7 @@ jobs:
           # Verificar kernel
           if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "build-kernel-${{ inputs.arch }}"; then
             echo "has_kernel=true" >> $GITHUB_OUTPUT
-            echo "stage=4-packages" >> $GITHUB_OUTPUT
+            echo "stage=stage_4" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "has_kernel=false" >> $GITHUB_OUTPUT
@@ -92,18 +92,18 @@ jobs:
           # Verificar defconfig
           if curl -sL "https://api.github.com/repos/${{ github.repository }}/actions/artifacts" | grep -q "buildroot-defconfig-${{ inputs.arch }}"; then
             echo "has_defconfig=true" >> $GITHUB_OUTPUT
-            echo "stage=3-kernel" >> $GITHUB_OUTPUT
+            echo "stage=stage_3" >> $GITHUB_OUTPUT
             exit 0
           fi
           echo "has_defconfig=false" >> $GITHUB_OUTPUT
           
-          echo "stage=1-prepare" >> $GITHUB_OUTPUT
+          echo "stage=stage_1" >> $GITHUB_OUTPUT
 
-  1-prepare:
+  prepare:
     name: "[1/5] Preparar Ambiente"
     runs-on: ubuntu-latest
     needs: detectar_estado
-    if: needs.detectar_estado.outputs.stage == '1-prepare' || needs.detectar_estado.outputs.stage == '2-defconfig' || needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    if: needs.detectar_estado.outputs.stage == 'stage_1' || needs.detectar_estado.outputs.stage == 'stage_2' || needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -143,11 +143,11 @@ jobs:
             dl/
           retention-days: 7
 
-  2-defconfig:
+  defconfig:
     name: "[2/5] Configurar Build"
     runs-on: ubuntu-latest
     needs: [1-prepare, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == '2-defconfig' || needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    if: needs.detectar_estado.outputs.stage == 'stage_2' || needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
         with:
@@ -201,11 +201,11 @@ jobs:
             defconfig.log
           retention-days: 7
 
-  3-kernel:
+  kernel:
     name: "[3/5] Compilar Kernel"
     runs-on: ubuntu-latest
     needs: [2-defconfig, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == '3-kernel' || needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    if: needs.detectar_estado.outputs.stage == 'stage_3' || needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
 
@@ -250,11 +250,11 @@ jobs:
             kernel.log
           retention-days: 7
 
-  4-packages:
+  packages:
     name: "[4/5] Compilar Pacotes"
     runs-on: ubuntu-latest
     needs: [3-kernel, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == '4-packages' || needs.detectar_estado.outputs.stage == '5-image'
+    if: needs.detectar_estado.outputs.stage == 'stage_4' || needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
 
@@ -300,11 +300,11 @@ jobs:
             packages.log
           retention-days: 7
 
-  5-image:
+  gen_image:
     name: "[5/5] Gerar Imagem"
     runs-on: ubuntu-latest
     needs: [4-packages, detectar_estado]
-    if: needs.detectar_estado.outputs.stage == '5-image'
+    if: needs.detectar_estado.outputs.stage == 'stage_5'
     steps:
       - uses: actions/checkout@v4
 
