@@ -63,10 +63,12 @@ RUN apt-get update -y && \
         ccache \
         curl \
         cargo \
+        aria2 \
+        unzip \
         && rm -rf /var/lib/apt/lists/*
 
 RUN cargo install b3sum --locked 2>/dev/null || \
-    (curl -sL https://github.com/BLAKE3-team/BLAKE3/releases/latest/download/b3sum-bin-linux-x86_64.zip -o /tmp/b3.zip && \
+    (aria2c -x 16 -s 16 -d /tmp -o b3.zip https://github.com/BLAKE3-team/BLAKE3/releases/latest/download/b3sum-bin-linux-x86_64.zip && \
     unzip -o /tmp/b3.zip -d /usr/local/bin && \
     chmod +x /usr/local/bin/b3sum && \
     rm /tmp/b3.zip) || true
