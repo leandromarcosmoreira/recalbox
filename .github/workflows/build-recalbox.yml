@@ -169,6 +169,11 @@ jobs:
         include:
           - arch: x86_64
           - arch: rpi5_64
+          - arch: rpi4_64
+          - arch: rpi3
+          - arch: rpizero2
+          - arch: rg353x
+          - arch: odroidgo2
     env:
       ARCH: ${{ matrix.arch }}
     steps:
@@ -265,7 +270,7 @@ jobs:
 
       - name: Mostrar artefatos baixados
         run: |
-          for arch in x86_64 rpi5_64; do
+          for arch in x86_64 rpi5_64 rpi3 rpizero2 rpi4_64 rg353x odroidgo2; do
             echo "=== $arch ==="
             ls -lh dist-$arch/ 2>/dev/null || echo "Sem artefatos para $arch"
           done
@@ -284,7 +289,7 @@ jobs:
           DATETIME=$(date '+%Y-%m-%d %H:%M:%S')
           COMMIT="${{ github.sha }}"
           
-          for arch in x86_64 rpi5_64; do
+          for arch in x86_64 rpi5_64 rpi3 rpizero2 rpi4_64 rg353x odroidgo2; do
             ARCH_DIR="dist-$arch"
             
             ARCH_DISPLAY=""
@@ -297,6 +302,26 @@ jobs:
               rpi5_64)
                 ARCH_DISPLAY="Raspberry Pi 5"
                 ARCH_DESCRIPTION="Para Raspberry Pi 5 (8GB recomendado)"
+                ;;
+              rpi4_64)
+                ARCH_DISPLAY="Raspberry Pi 4"
+                ARCH_DESCRIPTION="Para Raspberry Pi 4 (4GB ou 8GB)"
+                ;;
+              rpi3)
+                ARCH_DISPLAY="Raspberry Pi 3"
+                ARCH_DESCRIPTION="Para Raspberry Pi 3B/B+"
+                ;;
+              rpizero2)
+                ARCH_DISPLAY="Raspberry Pi Zero 2"
+                ARCH_DESCRIPTION="Para Raspberry Pi Zero 2 W"
+                ;;
+              rg353x)
+                ARCH_DISPLAY="Anbernic RG353X"
+                ARCH_DESCRIPTION="Para handheld Anbernic RG353X"
+                ;;
+              odroidgo2)
+                ARCH_DISPLAY="Odroid Go Advance"
+                ARCH_DESCRIPTION="Para Odroid Go Advance"
                 ;;
             esac
             
