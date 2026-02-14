@@ -269,8 +269,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: .
-          pattern: buildroot-*
+          pattern: "buildroot-*"
           merge-multiple: true
+        continue-on-error: true
+
+      - name: Baixar cache defconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: buildroot-defconfig-${{ inputs.arch }}
+          path: .
         continue-on-error: true
 
       - name: Corrigir permissões
@@ -323,8 +330,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: .
-          pattern: build*
+          pattern: "build*"
           merge-multiple: true
+        continue-on-error: true
+
+      - name: Baixar cache defconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: buildroot-defconfig-${{ inputs.arch }}
+          path: .
         continue-on-error: true
 
       - name: Corrigir permissões
@@ -378,8 +392,15 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           path: .
-          pattern: build*
+          pattern: "build*"
           merge-multiple: true
+        continue-on-error: true
+
+      - name: Baixar cache defconfig
+        uses: actions/download-artifact@v4
+        with:
+          name: buildroot-defconfig-${{ inputs.arch }}
+          path: .
         continue-on-error: true
 
       - name: Corrigir permissões
