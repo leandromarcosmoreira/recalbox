@@ -112,3 +112,4 @@ Reinicie o Docker e tente novamente. Deve funcionar.
 sudo service docker restart
 docker build -t "recalbox-dev" .
 ```
+test
