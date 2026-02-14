@@ -388,8 +388,8 @@ jobs:
 
       - name: Gerar imagem
         run: |
-          chmod -R 777 /recalbox/output 2>/dev/null || true
-          docker run --rm --privileged --security-opt seccomp=unconfined \
+          chmod -R 777 /recalbox/output /recalbox/buildroot 2>/dev/null || true
+          docker run --rm --privileged \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=${{ needs.detectar_estado.outputs.recalbox_arch }}" \
@@ -399,8 +399,9 @@ jobs:
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
             -e "USER=root" \
+            -u root:root \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" RECALBOX_IMAGES="recalbox" 2>&1 | tee image.log
+            bash -c "chmod -R 777 /recalbox/output /recalbox/buildroot && make -C buildroot BR2_DL_DIR='/recalbox/dl' RECALBOX_IMAGES='recalbox' 2>&1" | tee image.log
 
       - name: Preparar artefatos
         run: |
