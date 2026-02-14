@@ -218,6 +218,9 @@ jobs:
             cd ..
           fi
           
+          echo "Corrigindo permissoes dos scripts..."
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+          
           if [ ! -f "buildroot/.config" ]; then
             echo "Configurando buildroot para ${{ matrix.arch }} (dentro do Docker)..."
             docker run --rm --security-opt seccomp=unconfined \
