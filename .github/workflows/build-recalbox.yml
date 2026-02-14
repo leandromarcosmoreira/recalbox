@@ -111,7 +111,8 @@ jobs:
           cd ..
           
           echo "Copiando configs do Recalbox para buildroot..."
-          cp configs/recalbox-*_defconfig buildroot/configs/
+          cp -v configs/recalbox-*_defconfig buildroot/configs/ || echo "Nenhum config encontrado"
+          ls -la buildroot/configs/recalbox* 2>/dev/null || echo "Configs não copiados"
           
           echo "Garantindo que custom existe..."
           mkdir -p custom
