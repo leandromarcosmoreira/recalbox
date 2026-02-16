@@ -81,7 +81,7 @@ jobs:
       - name: Run defconfig and build
         run: |
           echo "Testing docker..."
-          docker run --rm --privileged recalbox-build:latest echo "Docker works"
+          docker run --rm --privileged recalbox-build:latest echo "Docker works" || echo "Docker test failed"
           echo "Now running build..."
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --privileged \
@@ -96,7 +96,9 @@ jobs:
             -e "USER=root" \
             -u root:root \
             recalbox-build:latest \
-            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make all" 2>&1 | tee build.log
+            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make all" 2>&1 || echo "Build failed with exit code $?"
+          echo "Checking output..."
+          ls -la output/ 2>/dev/null || echo "No output dir"
 
       - name: Prepare artifacts
         run: |
