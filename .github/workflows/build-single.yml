@@ -80,6 +80,9 @@ jobs:
 
       - name: Run defconfig and build
         run: |
+          echo "Testing docker..."
+          docker run --rm --privileged recalbox-build:latest echo "Docker works"
+          echo "Now running build..."
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --privileged \
             -v "$(pwd):/recalbox" \
