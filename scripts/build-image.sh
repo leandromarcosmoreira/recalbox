@@ -15,8 +15,6 @@ chmod -R 777 output build dl 2>/dev/null || true
 
 echo "=== Output directory ==="
 ls -la output/ 2>/dev/null || echo "No output dir"
-
-echo "=== Checking output/build ==="
 ls -la output/build/ 2>/dev/null || echo "No build dir"
 
 echo "=== Running make world (includes image generation) ==="
