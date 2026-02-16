@@ -35,6 +35,25 @@ jobs:
         run: |
           mkdir -p output build dl
 
+      - name: Clone buildroot
+        run: |
+          if [ ! -d "buildroot" ] || [ ! -f "buildroot/Makefile" ]; then
+            echo "Cloning buildroot..."
+            rm -rf buildroot
+            git clone --depth 1 --branch 2024.02 https://git.busybox.net/buildroot buildroot
+            cd buildroot
+            git fetch --depth 1 origin e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            git checkout e4a5ab3b319753f41e2b5cf22e90b6b0304ca225
+            cd ..
+          else
+            echo "Buildroot already exists"
+          fi
+          
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+          fi
+          
+          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
+
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
