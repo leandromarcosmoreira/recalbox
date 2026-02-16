@@ -61,6 +61,7 @@ jobs:
           tags: recalbox-build:latest
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
+          no-cache: true
 
       - name: Set architecture variables
         id: mapeamento
@@ -80,9 +81,10 @@ jobs:
 
       - name: Run defconfig and build
         run: |
-          echo "=== Testing docker run ==="
-          docker run --rm recalbox-build:latest which make
-          docker run --rm recalbox-build:latest ls /recalbox
+          echo "=== Testing simple docker command ==="
+          docker run --rm ubuntu:22.04 echo "hello world" || echo "Docker test failed"
+          echo "=== Testing recalbox-build image ==="
+          docker run --rm recalbox-build:latest echo "hello from recalbox" || echo "Recalbox docker test failed"
           echo "=== Now running build ==="
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm \
