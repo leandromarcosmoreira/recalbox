@@ -80,11 +80,12 @@ jobs:
 
       - name: Run defconfig and build
         run: |
-          echo "Testing docker..."
-          docker run --rm --privileged recalbox-build:latest echo "Docker works" || echo "Docker test failed"
-          echo "Now running build..."
+          echo "=== Listing recalbox dir ==="
+          ls -la
+          echo "=== Listing buildroot ==="
+          ls -la buildroot/ | head -20
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
-          docker run --rm --privileged \
+          docker run --rm \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
@@ -93,12 +94,8 @@ jobs:
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
-            -e "USER=root" \
-            -u root:root \
             recalbox-build:latest \
-            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make all" 2>&1 || echo "Build failed with exit code $?"
-          echo "Checking output..."
-          ls -la output/ 2>/dev/null || echo "No output dir"
+            bash -x make recalbox-${{ inputs.arch }}_defconfig 2>&1 | head -100
 
       - name: Prepare artifacts
         run: |
