@@ -80,10 +80,10 @@ jobs:
 
       - name: Run defconfig and build
         run: |
-          echo "=== Listing recalbox dir ==="
-          ls -la
-          echo "=== Listing buildroot ==="
-          ls -la buildroot/ | head -20
+          echo "=== Testing docker run ==="
+          docker run --rm recalbox-build:latest which make
+          docker run --rm recalbox-build:latest ls /recalbox
+          echo "=== Now running build ==="
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm \
             -v "$(pwd):/recalbox" \
@@ -95,7 +95,7 @@ jobs:
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
             recalbox-build:latest \
-            bash -x make recalbox-${{ inputs.arch }}_defconfig 2>&1 | head -100
+            make recalbox-${{ inputs.arch }}_defconfig 2>&1 | tail -50
 
       - name: Prepare artifacts
         run: |
