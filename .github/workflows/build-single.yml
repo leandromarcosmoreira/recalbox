@@ -97,7 +97,7 @@ jobs:
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
             recalbox-build:latest \
-            make recalbox-${{ inputs.arch }}_defconfig 2>&1 | tail -50
+            make recalbox-${{ inputs.arch }}_defconfig 2>&1
 
       - name: Prepare artifacts
         run: |
