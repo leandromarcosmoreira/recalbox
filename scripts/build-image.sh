@@ -1,7 +1,5 @@
 #!/bin/bash
 
-set -e
-
 echo "=== Starting image build ==="
 echo "ARCH: $ARCH"
 echo "O: $O"
@@ -18,7 +16,11 @@ chmod -R 777 output build dl 2>/dev/null || true
 echo "=== Output directory ==="
 ls -la output/ 2>/dev/null || echo "No output dir"
 
+echo "=== Checking output/build ==="
+ls -la output/build/ 2>/dev/null || echo "No build dir"
+
 echo "=== Running make world (includes image generation) ==="
+set +e
 make -C buildroot \
     BR2_DL_DIR="$BR2_DL_DIR" \
     BR2_EXTERNAL="$BR2_EXTERNAL" \
@@ -26,12 +28,14 @@ make -C buildroot \
     world 2>&1 | tee /recalbox/build.log
 
 BUILD_STATUS=${PIPESTATUS[0]}
+set -e
+
 echo "Build exit status: $BUILD_STATUS"
 
 if [ $BUILD_STATUS -ne 0 ]; then
     echo "Build failed! Showing last 100 lines of log:"
     tail -100 /recalbox/build.log || true
-    exit $BUILD_STATUS
+    exit 1
 fi
 
 echo "=== Build log tail ==="
@@ -51,4 +55,5 @@ if [ -z "$(ls -A output/images/recalbox/)" ]; then
     exit 1
 fi
 
+echo "=== Image build completed successfully ==="
 exit 0

@@ -443,7 +443,15 @@ jobs:
 
       - name: Gerar imagem
         run: |
-          chmod -R 777 /recalbox/output /recalbox/buildroot 2>/dev/null || true
+          echo "=== Checking current directory ==="
+          pwd
+          ls -la
+          
+          echo "=== Checking output directory ==="
+          ls -la output/ 2>/dev/null || echo "No output dir"
+          ls -la output/build/ 2>/dev/null || echo "No build dir"
+          
+          chmod -R 777 output build dl 2>/dev/null || true
           docker run --rm --privileged \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
@@ -458,6 +466,7 @@ jobs:
             recalbox-build:latest \
             /bin/bash -x /recalbox/scripts/build-image.sh
           
+          echo "=== After build ==="
           ls -la output/images/ 2>/dev/null || echo "Imagem não encontrada"
 
       - name: Preparar artefatos
