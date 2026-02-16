@@ -51,10 +51,6 @@ jobs:
           
           chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 
-      - name: Merge recalbox to buildroot
-        run: |
-          CUSTOM_DIR=/recalbox/custom BUILDROOT_DIR=/recalbox/buildroot /recalbox/scripts/linux/mergeToBR.sh -f
-
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
@@ -65,7 +61,7 @@ jobs:
           cache-from: type=gha,scope=recalbox
           cache-to: type=gha,mode=max,scope=recalbox
 
-      - name: Mapeamento de arquitetura
+      - name: Set architecture variables
         id: mapeamento
         run: |
           ARCH="${{ inputs.arch }}"
@@ -81,8 +77,12 @@ jobs:
           esac
           echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
 
+      - name: Merge recalbox to buildroot
+        run: docker run --rm -v "$(pwd):/recalbox" -w /recalbox recalbox-build:latest /bin/bash -c "CUSTOM_DIR=/recalbox/custom BUILDROOT_DIR=/recalbox/buildroot /recalbox/scripts/linux/mergeToBR.sh -f"
+
       - name: Run defconfig
         run: |
+          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
@@ -96,6 +96,7 @@ jobs:
 
       - name: Compile kernel
         run: |
+          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
@@ -111,6 +112,7 @@ jobs:
 
       - name: Compile all packages
         run: |
+          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --security-opt seccomp=unconfined \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
@@ -127,6 +129,7 @@ jobs:
 
       - name: Generate image
         run: |
+          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --privileged \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
