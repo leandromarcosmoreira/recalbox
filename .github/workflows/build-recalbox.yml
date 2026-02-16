@@ -429,27 +429,32 @@ jobs:
           echo "=== Caches baixados ==="
           ls -la cache_temp/ 2>/dev/null || echo "No cache dir"
           
-          # Mover build-packages para output
+          # Mover build-packages para output (usar mv para preservar tudo)
           if [ -d "cache_temp/build-packages-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/build-packages-${{ inputs.arch }}/* output/ 2>/dev/null || true
+            echo "Moving build-packages..."
+            ls -la cache_temp/build-packages-${{ inputs.arch }}/
+            mv cache_temp/build-packages-${{ inputs.arch }}/* output/ 2>/dev/null || cp -rv cache_temp/build-packages-${{ inputs.arch }}/* output/
             rm -rf cache_temp/build-packages-${{ inputs.arch }}
           fi
           
           # Mover build-kernel para output
           if [ -d "cache_temp/build-kernel-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/build-kernel-${{ inputs.arch }}/* output/ 2>/dev/null || true
+            echo "Moving build-kernel..."
+            mv cache_temp/build-kernel-${{ inputs.arch }}/* output/ 2>/dev/null || cp -rv cache_temp/build-kernel-${{ inputs.arch }}/* output/
             rm -rf cache_temp/build-kernel-${{ inputs.arch }}
           fi
           
           # Mover buildroot-defconfig para .
           if [ -d "cache_temp/buildroot-defconfig-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/buildroot-defconfig-${{ inputs.arch }}/* . 2>/dev/null || true
+            echo "Moving buildroot-defconfig..."
+            mv cache_temp/buildroot-defconfig-${{ inputs.arch }}/* . 2>/dev/null || cp -rv cache_temp/buildroot-defconfig-${{ inputs.arch }}/* ./
             rm -rf cache_temp/buildroot-defconfig-${{ inputs.arch }}
           fi
           
           # Mover buildroot-prepare para .
           if [ -d "cache_temp/buildroot-prepare-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/buildroot-prepare-${{ inputs.arch }}/* . 2>/dev/null || true
+            echo "Moving buildroot-prepare..."
+            mv cache_temp/buildroot-prepare-${{ inputs.arch }}/* . 2>/dev/null || cp -rv cache_temp/buildroot-prepare-${{ inputs.arch }}/* ./
             rm -rf cache_temp/buildroot-prepare-${{ inputs.arch }}
           fi
           
