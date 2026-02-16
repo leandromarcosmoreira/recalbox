@@ -50,9 +50,6 @@ jobs:
           fi
           
           chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
-          fi
-          
-          chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 
       - name: Build Docker image
         uses: docker/build-push-action@v6
