@@ -79,7 +79,7 @@ jobs:
           esac
           echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
 
-      - name: Run defconfig and build
+      - name: Run build
         run: |
           echo "=== Testing simple docker command ==="
           docker run --rm ubuntu:22.04 echo "hello world" || echo "Docker test failed"
@@ -97,7 +97,7 @@ jobs:
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
             recalbox-build:latest \
-            make recalbox-${{ inputs.arch }}_defconfig 2>&1
+            make 2>&1
 
       - name: Prepare artifacts
         run: |
