@@ -51,6 +51,10 @@ jobs:
           
           chmod +x buildroot/support/scripts/* buildroot/scripts/* 2>/dev/null || true
 
+      - name: Merge recalbox to buildroot
+        run: |
+          CUSTOM_DIR=/recalbox/custom BUILDROOT_DIR=/recalbox/buildroot /recalbox/scripts/linux/mergeToBR.sh -f
+
       - name: Build Docker image
         uses: docker/build-push-action@v6
         with:
