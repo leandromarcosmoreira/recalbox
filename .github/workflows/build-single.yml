@@ -92,9 +92,8 @@ jobs:
             -e "BR2_DL_DIR=/recalbox/dl" \
             -e "USER=root" \
             -u root:root \
-            -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make" 2>&1 | tee build.log
+            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make all" 2>&1 | tee build.log
 
       - name: Prepare artifacts
         run: |
