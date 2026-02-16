@@ -1,0 +1,148 @@
+name: Recalbox Build (Single Job)
+
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        description: 'Arquitetura'
+        required: false
+        default: 'x86_64'
+        type: choice
+        options:
+          - x86_64
+          - rpi5_64
+          - rpi4_64
+          - rpi3
+          - rpizero2
+          - rg353x
+          - odroidgo2
+
+env:
+  DOCKER_BUILDKIT: 1
+  COMPOSE_DOCKER_CLI_BUILD: 1
+
+jobs:
+  build:
+    name: Build Recalbox ${{ inputs.arch }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Prepare directories
+        run: |
+          mkdir -p output build dl
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: false
+          load: true
+          tags: recalbox-build:latest
+          cache-from: type=gha,scope=recalbox
+          cache-to: type=gha,mode=max,scope=recalbox
+
+      - name: Mapeamento de arquitetura
+        id: mapeamento
+        run: |
+          ARCH="${{ inputs.arch }}"
+          case "$ARCH" in
+            x86_64)      LINUX_ARCH="x86_64" ;;
+            rpi5_64)     LINUX_ARCH="aarch64" ;;
+            rpi4_64)     LINUX_ARCH="aarch64" ;;
+            rpi3)        LINUX_ARCH="armv7" ;;
+            rpizero2)    LINUX_ARCH="armv7" ;;
+            rg353x)      LINUX_ARCH="aarch64" ;;
+            odroidgo2)   LINUX_ARCH="aarch64" ;;
+            *)           LINUX_ARCH="$ARCH" ;;
+          esac
+          echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
+
+      - name: Run defconfig
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=$LINUX_ARCH" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            recalbox-build:latest \
+            make recalbox-${{ inputs.arch }}_defconfig 2>&1 | tee defconfig.log
+
+      - name: Compile kernel
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=$LINUX_ARCH" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" linux 2>&1 | tee kernel.log
+
+      - name: Compile all packages
+        run: |
+          docker run --rm --security-opt seccomp=unconfined \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=$LINUX_ARCH" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "RECALBOX_CCACHE_ENABLED=1" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            -v "${HOME}/.ccache:/share/ccache" \
+            recalbox-build:latest \
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" all 2>&1 | tee packages.log
+
+      - name: Generate image
+        run: |
+          docker run --rm --privileged \
+            -v "$(pwd):/recalbox" \
+            -w /recalbox \
+            -e "ARCH=$LINUX_ARCH" \
+            -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
+            -e "O=/recalbox/output" \
+            -e "BR2_DL_DIR=/recalbox/dl" \
+            -e "USER=root" \
+            -u root:root \
+            recalbox-build:latest \
+            make -C buildroot BR2_DL_DIR="/recalbox/dl" world 2>&1 | tee image.log
+
+      - name: Prepare artifacts
+        run: |
+          echo "=== Output images ==="
+          ls -la output/images/ 2>/dev/null || echo "No images dir"
+          ls -la output/images/recalbox/ 2>/dev/null || echo "No recalbox dir"
+          
+          if [ -f "output/images/recalbox/recalbox.img" ]; then
+            mkdir -p dist-${{ inputs.arch }}
+            cp output/images/recalbox/* dist-${{ inputs.arch }}/
+            cd dist-${{ inputs.arch }}
+            sha256sum * > SHA256SUMS.txt
+            echo "=== Files in dist ==="
+            ls -la
+          else
+            echo "Build output not found"
+            ls -la output/images/ 2>/dev/null || echo "Directory does not exist"
+          fi
+
+      - name: Upload artifacts
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: imagem-${{ inputs.arch }}
+          path: dist-${{ inputs.arch }}/
+          retention-days: 30
