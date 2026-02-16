@@ -98,6 +98,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=0" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
@@ -114,6 +115,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=0" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -e "BR2_EXTERNAL=/recalbox" \
@@ -131,6 +133,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=0" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "BR2_EXTERNAL=/recalbox" \
             -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
