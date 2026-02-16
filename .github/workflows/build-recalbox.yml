@@ -423,6 +423,9 @@ jobs:
 
       - name: Mover caches para diretórios corretos
         run: |
+          # Criar diretórios necessários
+          mkdir -p output build dl
+          
           echo "=== Caches baixados ==="
           ls -la cache_temp/ 2>/dev/null || echo "No cache dir"
           
