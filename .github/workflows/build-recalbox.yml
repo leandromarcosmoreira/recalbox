@@ -401,7 +401,7 @@ jobs:
         with:
           name: build-packages-${{ inputs.arch }}
           path: |
-            output/build/
+            output/
             packages.log
           retention-days: 7
 
