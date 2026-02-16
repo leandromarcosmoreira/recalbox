@@ -428,25 +428,25 @@ jobs:
           
           # Mover build-packages para output
           if [ -d "cache_temp/build-packages-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/build-packages-${{ inputs.arch }}"/*" output/ 2>/dev/null || true
+            cp -r cache_temp/build-packages-${{ inputs.arch }}/* output/ 2>/dev/null || true
             rm -rf cache_temp/build-packages-${{ inputs.arch }}
           fi
           
           # Mover build-kernel para output
           if [ -d "cache_temp/build-kernel-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/build-kernel-${{ inputs.arch }}"/*" output/ 2>/dev/null || true
+            cp -r cache_temp/build-kernel-${{ inputs.arch }}/* output/ 2>/dev/null || true
             rm -rf cache_temp/build-kernel-${{ inputs.arch }}
           fi
           
           # Mover buildroot-defconfig para .
           if [ -d "cache_temp/buildroot-defconfig-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/buildroot-defconfig-${{ inputs.arch }}"/*" . 2>/dev/null || true
+            cp -r cache_temp/buildroot-defconfig-${{ inputs.arch }}/* . 2>/dev/null || true
             rm -rf cache_temp/buildroot-defconfig-${{ inputs.arch }}
           fi
           
           # Mover buildroot-prepare para .
           if [ -d "cache_temp/buildroot-prepare-${{ inputs.arch }}" ]; then
-            cp -r cache_temp/buildroot-prepare-${{ inputs.arch }}"/*" . 2>/dev/null || true
+            cp -r cache_temp/buildroot-prepare-${{ inputs.arch }}/* . 2>/dev/null || true
             rm -rf cache_temp/buildroot-prepare-${{ inputs.arch }}
           fi
           
