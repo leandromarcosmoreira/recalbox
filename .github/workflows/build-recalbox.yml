@@ -413,6 +413,17 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Setup cache
+        uses: actions/cache@v4
+        with:
+          path: |
+            output/
+            dl/
+            buildroot/output/
+          key: recalbox-${{ inputs.arch }}-${{ hashFiles('buildroot/.config') }}
+          restore-keys: |
+            recalbox-${{ inputs.arch }}-
+
       - name: Baixar todos os caches
         uses: actions/download-artifact@v4
         with:
