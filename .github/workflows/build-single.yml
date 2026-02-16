@@ -99,6 +99,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
@@ -113,6 +114,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "RECALBOX_CCACHE_ENABLED=1" \
             -e "O=/recalbox/output" \
@@ -128,6 +130,7 @@ jobs:
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
+            -e "CI=" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
