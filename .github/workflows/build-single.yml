@@ -78,66 +78,23 @@ jobs:
           esac
           echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
 
-      - name: Run defconfig
-        run: |
-          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/recalbox" \
-            -w /recalbox \
-            -e "ARCH=$LINUX_ARCH" \
-            -e "BR2_EXTERNAL=/recalbox" \
-            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
-            -e "O=/recalbox/output" \
-            -e "BR2_DL_DIR=/recalbox/dl" \
-            recalbox-build:latest \
-            make recalbox-${{ inputs.arch }}_defconfig 2>&1 | tee defconfig.log
-
-      - name: Compile kernel
-        run: |
-          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/recalbox" \
-            -w /recalbox \
-            -e "ARCH=$LINUX_ARCH" \
-            -e "CI=" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "O=/recalbox/output" \
-            -e "BR2_DL_DIR=/recalbox/dl" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" linux 2>&1 | tee kernel.log
-
-      - name: Compile all packages
-        run: |
-          LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
-          docker run --rm --security-opt seccomp=unconfined \
-            -v "$(pwd):/recalbox" \
-            -w /recalbox \
-            -e "ARCH=$LINUX_ARCH" \
-            -e "CI=" \
-            -e "FORCE_UNSAFE_CONFIGURE=1" \
-            -e "RECALBOX_CCACHE_ENABLED=1" \
-            -e "O=/recalbox/output" \
-            -e "BR2_DL_DIR=/recalbox/dl" \
-            -v "${HOME}/.ccache:/share/ccache" \
-            recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" all 2>&1 | tee packages.log
-
-      - name: Generate image
+      - name: Run defconfig and build
         run: |
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
           docker run --rm --privileged \
             -v "$(pwd):/recalbox" \
             -w /recalbox \
             -e "ARCH=$LINUX_ARCH" \
-            -e "CI=" \
             -e "FORCE_UNSAFE_CONFIGURE=1" \
+            -e "BR2_EXTERNAL=/recalbox" \
+            -e "BR2_PACKAGE_OVERRIDE_FILE=/recalbox/local.mk" \
             -e "O=/recalbox/output" \
             -e "BR2_DL_DIR=/recalbox/dl" \
             -e "USER=root" \
             -u root:root \
+            -v "${HOME}/.ccache:/share/ccache" \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" image 2>&1 | tee image.log
+            /bin/bash -c "git config --global --add safe.directory /recalbox/buildroot && make recalbox-${{ inputs.arch }}_defconfig && make" 2>&1 | tee build.log
 
       - name: Prepare artifacts
         run: |
