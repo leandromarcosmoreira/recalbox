@@ -77,9 +77,6 @@ jobs:
           esac
           echo "linux_arch=$LINUX_ARCH" >> $GITHUB_OUTPUT
 
-      - name: Merge recalbox to buildroot
-        run: docker run --rm -v "$(pwd):/recalbox" -w /recalbox recalbox-build:latest /bin/bash -c "CUSTOM_DIR=/recalbox/custom BUILDROOT_DIR=/recalbox/buildroot /recalbox/scripts/linux/mergeToBR.sh -f"
-
       - name: Run defconfig
         run: |
           LINUX_ARCH="${{ steps.mapeamento.outputs.linux_arch }}"
@@ -142,7 +139,7 @@ jobs:
             -e "USER=root" \
             -u root:root \
             recalbox-build:latest \
-            make -C buildroot BR2_DL_DIR="/recalbox/dl" world 2>&1 | tee image.log
+            make BR2_DL_DIR="/recalbox/dl" image 2>&1 | tee image.log
 
       - name: Prepare artifacts
         run: |
